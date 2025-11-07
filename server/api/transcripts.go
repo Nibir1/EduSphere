@@ -5,9 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"time"
+
+	"os/exec"
+	"path/filepath"
+
+	"github.com/otiai10/gosseract/v2"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/ledongthuc/pdf"
 	db "github.com/nibir1/go-fiber-postgres-REST-boilerplate/db/sqlc"
 	"github.com/nibir1/go-fiber-postgres-REST-boilerplate/token"
 )
@@ -16,25 +25,90 @@ import (
 // PDF TEXT EXTRACTION (stubs you can wire to ledongthuc/pdf or gosseract)
 // -----------------------------------------------------------------------------
 
-// Try plain text extraction using e.g. github.com/ledongthuc/pdf.
-// Currently returns a sentinel error so the handler can optionally try OCR.
+// extractPDFText extracts text from a PDF file if it contains selectable text.
 func extractPDFText(path string) (string, error) {
-	// Example wiring (not included to keep deps light):
-	// f, r, err := pdf.Open(path)
-	// if err != nil { return "", err }
-	// defer f.Close()
-	// var buf strings.Builder
-	// b, err := r.GetPlainText()
-	// if err != nil { return "", err }
-	// _, _ = io.Copy(&buf, b)
-	// return buf.String(), nil
-	return "", errors.New("text extractor not wired (plug ledongthuc/pdf or similar)")
+	f, r, err := pdf.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to open PDF: %w", err)
+	}
+	defer f.Close()
+
+	var buf strings.Builder
+	b, err := r.GetPlainText()
+	if err != nil {
+		return "", fmt.Errorf("failed to extract text: %w", err)
+	}
+
+	_, err = io.Copy(&buf, b)
+	if err != nil {
+		return "", fmt.Errorf("failed to read PDF text: %w", err)
+	}
+
+	text := buf.String()
+	if strings.TrimSpace(text) == "" {
+		return "", errors.New("no text extracted (possible scanned PDF)")
+	}
+
+	return text, nil
 }
 
-// Optional OCR (requires system tesseract + gosseract binding).
-// Currently returns a sentinel error unless you wire it up.
-func ocrPDFToText(path string) (string, error) {
-	return "", errors.New("OCR not implemented; wire gosseract if needed")
+// ocrPDFToText runs OCR using Tesseract via gosseract to extract text from scanned PDFs.
+func ocrPDFToText(pdfPath string) (string, error) {
+	// Step 1: Convert the PDF pages to images (using pdftoppm from poppler-utils)
+	tempDir := os.TempDir()
+	outputPrefix := filepath.Join(tempDir, fmt.Sprintf("ocr_%d", time.Now().UnixNano()))
+	cmd := exec.Command("pdftoppm", "-png", pdfPath, outputPrefix)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to convert pdf to images: %w", err)
+	}
+
+	// Step 2: Collect all generated PNGs
+	files, err := filepath.Glob(outputPrefix + "-*.png")
+	if err != nil {
+		return "", fmt.Errorf("failed to list converted images: %w", err)
+	}
+	if len(files) == 0 {
+		return "", errors.New("no image files found for OCR conversion")
+	}
+
+	// Step 3: OCR each image page
+	client := gosseract.NewClient()
+	defer client.Close()
+	client.SetLanguage("eng")
+
+	var result strings.Builder
+	for _, file := range files {
+		if err := client.SetImage(file); err != nil {
+			fmt.Printf("[DEBUG] Failed to set image %s: %v\n", file, err)
+			continue
+		}
+		text, err := client.Text()
+		if err != nil {
+			fmt.Printf("[DEBUG] OCR failed on %s: %v\n", file, err)
+			continue
+		}
+		result.WriteString(text + "\n")
+		os.Remove(file) // cleanup
+	}
+
+	output := strings.TrimSpace(result.String())
+	if output == "" {
+		return "", errors.New("OCR produced empty text")
+	}
+
+	fmt.Printf("------------------------------------------------------------\n")
+	fmt.Printf("[DEBUG] OCR Extracted text preview:\n\n%s\n", truncateString(output, 600))
+	fmt.Printf("------------------------------------------------------------\n")
+
+	return output, nil
+}
+
+// helper to truncate text for preview
+func truncateString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "...(truncated)"
 }
 
 // -----------------------------------------------------------------------------
@@ -70,10 +144,30 @@ func (s *Server) uploadTranscript(c *fiber.Ctx) error {
 		"ocr_used": false,
 		"source":   "upload",
 	}
+
+	// DEBUG: Print a short preview of what text was extracted
+	if err != nil {
+		fmt.Println("[DEBUG] Text extraction failed:", err)
+	} else {
+		if len(text) > 0 {
+			preview := text
+			if len(preview) > 300 {
+				preview = preview[:300] + "...(truncated)"
+			}
+			fmt.Println("------------------------------------------------------------")
+			fmt.Println("[DEBUG] Extracted text preview:")
+			fmt.Println(preview)
+			fmt.Println("------------------------------------------------------------")
+		} else {
+			fmt.Println("[DEBUG] No text extracted from PDF.")
+		}
+	}
+
 	if err != nil || strings.TrimSpace(text) == "" {
-		// OCR fallback if configured
+		// try OCR if allowed
 		if s.config.OCRFallbackEnabled {
-			if txt, oerr := ocrPDFToText(path); oerr == nil && strings.TrimSpace(txt) != "" {
+			txt, oerr := ocrPDFToText(path)
+			if oerr == nil && strings.TrimSpace(txt) != "" {
 				text = txt
 				meta["ocr_used"] = true
 			}
