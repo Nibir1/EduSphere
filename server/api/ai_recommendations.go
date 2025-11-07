@@ -95,27 +95,74 @@ Return a JSON array of recommended courses like:
 
 	data, _ := io.ReadAll(resp.Body)
 
+	// 🪶 DEBUG LOG: print the raw Ollama JSON response (first 500 chars)
+	fmt.Println("------------------------------------------------------------")
+	fmt.Println("[DEBUG] Raw Ollama Response:")
+	fmt.Println(string(data))
+	fmt.Println("------------------------------------------------------------")
+
 	var parsed ollamaResponse
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("bad ollama response: %v", err)))
 	}
 
-	// Parse model output
+	// Parse model output robustly — support both array and object-shaped responses
 	var recs []Recommendation
+
+	// Try direct array first
 	if err := json.Unmarshal([]byte(parsed.Response), &recs); err != nil {
-		// fallback: try to extract manually if model added extra text
-		recs = extractJSONRecommendations(parsed.Response)
+		// If it's not an array, maybe it's an object with "courses" or "recommendations"
+		var obj map[string]any
+		if err2 := json.Unmarshal([]byte(parsed.Response), &obj); err2 == nil {
+			if arr, ok := obj["courses"].([]any); ok {
+				b, _ := json.Marshal(arr)
+				_ = json.Unmarshal(b, &recs)
+			} else if arr, ok := obj["recommendations"].([]any); ok {
+				b, _ := json.Marshal(arr)
+				_ = json.Unmarshal(b, &recs)
+			}
+		}
+
+		// Fallback manual extraction if still empty
+		if len(recs) == 0 {
+			recs = extractJSONRecommendations(parsed.Response)
+		}
 	}
+
+	// 🪶 DEBUG LOG: print parsed recommendation structs
+	fmt.Println("[DEBUG] Parsed Recommendations (Go structs):")
+	for i, r := range recs {
+		fmt.Printf("  %d) %s (%.2f%%) — %s\n", i+1, r.Title, r.Match, r.Description)
+	}
+	fmt.Println("------------------------------------------------------------")
 
 	// Sort by match score
 	sort.Slice(recs, func(i, j int) bool { return recs[i].Match > recs[j].Match })
 
-	// Optional: Save result to a new table “recommendation_history” (later)
+	// Split into categories (simple rule-based classification)
+	var recommendedCourses []Recommendation
+	var scholarships []Recommendation
+
+	for _, r := range recs {
+		if strings.Contains(strings.ToLower(r.Title), "scholarship") {
+			r.Type = "scholarship"
+			scholarships = append(scholarships, r)
+		} else {
+			r.Type = "course"
+			recommendedCourses = append(recommendedCourses, r)
+		}
+	}
+
+	// Return structured response
 	return c.JSON(fiber.Map{
-		"user":            payload.Username,
-		"recommendations": recs,
-		"analyzed_at":     time.Now(),
+		"user":          payload.Username,
+		"courses":       recommendedCourses,
+		"scholarships":  scholarships,
+		"analyzed_at":   time.Now(),
+		"source":        "gemma3:4b-it-qat",
+		"transcript_id": latest.ID,
 	})
+
 }
 
 // Basic JSON parser fallback

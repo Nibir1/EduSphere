@@ -1,90 +1,153 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { TrendingUp, Award, BookOpen, Download, Trash2 } from "lucide-react"
-import api from "../api/axiosClient"
+import React, { useState, useEffect } from "react";
+import {
+  TrendingUp,
+  Award,
+  BookOpen,
+  Download,
+  Trash2,
+  Loader2,
+} from "lucide-react";
+import api from "../api/axiosClient";
 
-export default function RecommendationsSection({ recommendations, uploadedDocuments }) {
-  const [saving, setSaving] = useState(false)
-  const [loadingSummaries, setLoadingSummaries] = useState(false)
-  const [summaries, setSummaries] = useState([])
-  const [lastRecoId, setLastRecoId] = useState(null)
+export default function RecommendationsSection({ uploadedDocuments }) {
+  const [courses, setCourses] = useState([]);
+  const [scholarships, setScholarships] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [summaries, setSummaries] = useState([]);
+  const [lastRecoId, setLastRecoId] = useState(null);
 
-  // Retrieve last recommendation ID from localStorage (set in UploadSection)
+  // Retrieve last recommendation ID from localStorage
   useEffect(() => {
-    const rid = localStorage.getItem("last_reco_id")
-    if (rid) setLastRecoId(parseInt(rid, 10))
-  }, [])
+    const rid = localStorage.getItem("last_reco_id");
+    if (rid) setLastRecoId(parseInt(rid, 10));
+  }, []);
 
   // Fetch list of saved summaries
   const fetchSummaries = async () => {
-    setLoadingSummaries(true)
+    setLoadingSummaries(true);
     try {
-      const res = await api.get("/summaries")
-      setSummaries(res.data)
+      const res = await api.get("/summaries");
+      setSummaries(res.data);
     } catch (err) {
-      console.error(err)
+      console.error(err);
     } finally {
-      setLoadingSummaries(false)
+      setLoadingSummaries(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchSummaries()
-  }, [])
+    fetchSummaries();
+  }, []);
 
-  // Save the current recommendation as a PDF summary
-  const saveSummary = async () => {
-    if (!lastRecoId) return alert("No recommendation available to save yet.")
-    setSaving(true)
+  // 🔹 Fetch dynamic AI recommendations from backend
+  const fetchRecommendations = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const res = await api.post("/summaries", { recommendation_id: lastRecoId })
-      const pdfPath = res.data.pdf_path
-      alert("✅ Summary PDF saved successfully!")
-      await fetchSummaries()
-    } catch (e) {
-      console.error(e)
-      alert(e.response?.data?.error || "Failed to save summary.")
+      const res = await api.post("/recommendations/generate");
+      setCourses(res.data.courses || []);
+      setScholarships(res.data.scholarships || []);
+      // save last reco id for "Save Result (PDF)"
+      if (res.data.id) localStorage.setItem("last_reco_id", res.data.id);
+    } catch (err) {
+      console.error("Failed to fetch recommendations:", err);
+      setError(
+        err.response?.data?.error ||
+        "Failed to generate recommendations. Try again."
+      );
     } finally {
-      setSaving(false)
+      setLoading(false);
     }
-  }
+  };
 
-  // Download a summary
+  // Automatically trigger recommendations when tab loads
+  useEffect(() => {
+    fetchRecommendations();
+  }, []);
+
+  // 🔹 Save summary (PDF)
+  const saveSummary = async () => {
+    if (!lastRecoId) return alert("No recommendation available to save yet.");
+    setSaving(true);
+    try {
+      await api.post("/summaries", { recommendation_id: lastRecoId });
+      alert("✅ Summary PDF saved successfully!");
+      await fetchSummaries();
+    } catch (e) {
+      console.error(e);
+      alert(e.response?.data?.error || "Failed to save summary.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 🔹 Download summary
   const handleDownload = async (id) => {
     try {
-      const response = await api.get(`/summaries/${id}/download`, { responseType: "blob" })
-      const blob = new Blob([response.data], { type: "application/pdf" })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.setAttribute("download", `summary_${id}.pdf`)
-      document.body.appendChild(link)
-      link.click()
-      link.parentNode.removeChild(link)
-      window.URL.revokeObjectURL(url)
+      const response = await api.get(`/summaries/${id}/download`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `summary_${id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(error)
-      alert("Failed to download PDF")
+      console.error(error);
+      alert("Failed to download PDF");
     }
-  }
+  };
 
-  // Delete a summary
+  // 🔹 Delete summary
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this summary?")) return
+    if (!window.confirm("Are you sure you want to delete this summary?")) return;
     try {
-      await api.delete(`/summaries/${id}`)
-      alert("🗑️ Summary deleted successfully")
-      await fetchSummaries()
+      await api.delete(`/summaries/${id}`);
+      alert("🗑️ Summary deleted successfully");
+      await fetchSummaries();
     } catch (err) {
-      console.error(err)
-      alert("Failed to delete summary.")
+      console.error(err);
+      alert("Failed to delete summary.");
     }
+  };
+
+  // 🔹 Loading and error states
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600 mr-2" />
+        <span className="text-gray-600">
+          Generating personalized recommendations...
+        </span>
+      </div>
+    );
   }
 
-  const courses = recommendations.filter((r) => r.type === "course")
-  const scholarships = recommendations.filter((r) => r.type === "scholarship")
+  if (error) {
+    return (
+      <div className="text-center text-red-600 py-10">
+        ⚠️ {error}
+        <br />
+        <button
+          onClick={fetchRecommendations}
+          className="mt-3 text-sm text-blue-600 underline"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
+  // 🔹 Render UI
   return (
     <div className="space-y-8">
       {/* Summary Stats */}
@@ -93,7 +156,9 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Documents Analyzed</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{uploadedDocuments.length}</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">
+                {uploadedDocuments.length}
+              </p>
             </div>
             <div className="rounded-full bg-blue-100 p-3">
               <BookOpen className="h-6 w-6 text-blue-600" />
@@ -105,7 +170,9 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Courses Found</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{courses.length}</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">
+                {courses.length}
+              </p>
             </div>
             <div className="rounded-full bg-indigo-100 p-3">
               <TrendingUp className="h-6 w-6 text-indigo-600" />
@@ -117,7 +184,9 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Scholarships</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{scholarships.length}</p>
+              <p className="mt-1 text-3xl font-bold text-gray-900">
+                {scholarships.length}
+              </p>
             </div>
             <div className="rounded-full bg-green-100 p-3">
               <Award className="h-6 w-6 text-green-600" />
@@ -128,10 +197,14 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
 
       {/* Recommended Courses */}
       <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Recommended Courses</h2>
+        <h2 className="mb-4 text-xl font-bold text-gray-900">
+          Recommended Courses
+        </h2>
         <div className="grid gap-4">
           {courses.length === 0 && (
-            <p className="text-gray-500 text-sm">No recommendations yet. Try uploading a transcript.</p>
+            <p className="text-gray-500 text-sm">
+              No recommendations yet. Try uploading a transcript.
+            </p>
           )}
           {courses.map((course, idx) => (
             <div
@@ -140,14 +213,22 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{course.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{course.description}</p>
+                  <h3 className="font-semibold text-gray-900">
+                    {course.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {course.description}
+                  </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="rounded-full bg-blue-100 px-3 py-1">
-                    <span className="text-sm font-semibold text-blue-600">{course.match}%</span>
+                    <span className="text-sm font-semibold text-blue-600">
+                      {Math.round(course.match)}%
+                    </span>
                   </div>
-                  <button className="text-xs font-medium text-blue-600 hover:underline">Learn More →</button>
+                  <button className="text-xs font-medium text-blue-600 hover:underline">
+                    Learn More →
+                  </button>
                 </div>
               </div>
             </div>
@@ -157,10 +238,14 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
 
       {/* Recommended Scholarships */}
       <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Scholarship Opportunities</h2>
+        <h2 className="mb-4 text-xl font-bold text-gray-900">
+          Scholarship Opportunities
+        </h2>
         <div className="grid gap-4">
           {scholarships.length === 0 && (
-            <p className="text-gray-500 text-sm">No scholarships found for this profile yet.</p>
+            <p className="text-gray-500 text-sm">
+              No scholarships found for this profile yet.
+            </p>
           )}
           {scholarships.map((scholarship, idx) => (
             <div
@@ -169,14 +254,22 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{scholarship.title}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{scholarship.description}</p>
+                  <h3 className="font-semibold text-gray-900">
+                    {scholarship.title}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {scholarship.description}
+                  </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="rounded-full bg-green-100 px-3 py-1">
-                    <span className="text-sm font-semibold text-green-600">{scholarship.match}%</span>
+                    <span className="text-sm font-semibold text-green-600">
+                      {Math.round(scholarship.match)}%
+                    </span>
                   </div>
-                  <button className="text-xs font-medium text-green-600 hover:underline">Apply Now →</button>
+                  <button className="text-xs font-medium text-green-600 hover:underline">
+                    Apply Now →
+                  </button>
                 </div>
               </div>
             </div>
@@ -237,5 +330,5 @@ export default function RecommendationsSection({ recommendations, uploadedDocume
         )}
       </div>
     </div>
-  )
+  );
 }
