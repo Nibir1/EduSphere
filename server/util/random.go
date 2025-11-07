@@ -5,6 +5,9 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyz"
@@ -52,4 +55,37 @@ func RandomCurrency() string {
 // RandomEmail generates a random email address with a 6-character username and gmail.com domain
 func RandomEmail() string {
 	return fmt.Sprintf("%s@gmail.com", RandomString(6))
+}
+
+// RandomUserStruct creates a random user struct for testing.
+func RandomUserStruct() struct {
+	Username       string
+	FullName       string
+	Email          string
+	HashedPassword string
+	Role           string
+} {
+	// Generate a random plain password
+	plainPassword := RandomString(10)
+
+	// Hash it using bcrypt
+	hashed, err := HashPassword(plainPassword)
+	if err != nil {
+		// In tests, you can panic here safely, since it’s a setup helper
+		panic(fmt.Sprintf("failed to hash password: %v", err))
+	}
+
+	return struct {
+		Username       string
+		FullName       string
+		Email          string
+		HashedPassword string
+		Role           string
+	}{
+		Username:       RandomString(8),
+		FullName:       fmt.Sprintf("%s %s", cases.Title(language.English).String(RandomString(5)), cases.Title(language.English).String(RandomString(6))),
+		Email:          RandomEmail(),
+		HashedPassword: hashed,
+		Role:           "student", // You can switch to depositor/banker as needed
+	}
 }

@@ -15,6 +15,10 @@ type Config struct {
 	TokenSymmetricKey   string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`   // Symmetric key used for token signing (should be kept secret)
 	AccessTokenDuration time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"` // Duration for which access tokens are valid
 	AllowedOrigins      string        `mapstructure:"ALLOWED_ORIGINS"`       // Comma-separated list of allowed origins for CORS
+	OllamaBaseURL       string        `mapstructure:"OLLAMA_BASE_URL"`       // e.g. http://localhost:11434
+	OllamaModel         string        `mapstructure:"OLLAMA_MODEL"`          // e.g. gemma3:4b-it-qat
+	OCRFallbackEnabled  bool          `mapstructure:"OCR_FALLBACK_ENABLED"`  // true/false (requires tesseract installed)
+	UploadDir           string        `mapstructure:"UPLOAD_DIR"`            // Directory where uploaded files are stored
 }
 
 // LoadConfig reads the application configuration from a specified file or environment variables

@@ -68,7 +68,13 @@ func EqCreateUserParams(arg db.CreateUserParams, password string) gomock.Matcher
 // ---------------------------
 
 func TestCreateUserAPI(t *testing.T) {
-	user := randomUserStruct()
+	tempUser := util.RandomUserStruct()
+	user := db.User{
+		Username:       tempUser.Username,
+		FullName:       tempUser.FullName,
+		Email:          tempUser.Email,
+		HashedPassword: tempUser.HashedPassword,
+	}
 	password := util.RandomString(6)
 
 	testCases := []struct {
@@ -190,7 +196,13 @@ func TestCreateUserAPI(t *testing.T) {
 // ---------------------------
 
 func TestLoginUserAPI(t *testing.T) {
-	user := randomUserStruct()
+	tempUser := util.RandomUserStruct()
+	user := db.User{
+		Username:       tempUser.Username,
+		FullName:       tempUser.FullName,
+		Email:          tempUser.Email,
+		HashedPassword: tempUser.HashedPassword,
+	}
 	password := "secret123"
 
 	testCases := []struct {

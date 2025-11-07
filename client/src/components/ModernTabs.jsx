@@ -13,49 +13,34 @@ export default function ModernTabs() {
     { id: "chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   ]
 
+  // ...
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
 
-  const handleDocumentUpload = (documents) => {
-    setUploadedDocuments(documents)
-    setRecommendations([
-      {
-        type: "course",
-        title: "Advanced Data Science",
-        description: "Based on your strong math background",
-        match: 92,
-      },
-      {
-        type: "course",
-        title: "Machine Learning Fundamentals",
-        description: "Aligns with your computer science credits",
-        match: 88,
-      },
-      {
-        type: "scholarship",
-        title: "STEM Excellence Award",
-        description: "Merit-based scholarship for high achievers",
-        match: 85,
-      },
-      {
-        type: "scholarship",
-        title: "Tech Innovation Grant",
-        description: "For students pursuing technology fields",
-        match: 80,
-      },
-    ])
+  const handleDocumentUpload = (result) => {
+    // result: { transcriptId, recommendation }
+    setUploadedDocuments((prev) => [...prev, result.transcriptId]);
+    // transform server payload into your UI’s structure
+    const picks = (result.recommendation.courses || []).map((c) => ({
+      type: "course",
+      title: `Course ID ${c.course_id}`,
+      description: c.rationale,
+      match: c.match,
+    }));
+    setRecommendations(picks);
     setActiveTab("recommendations");
-  }
+  };
+  // ...
 
   useEffect(() => {
-  const saved = localStorage.getItem("uploadedDocs");
-  if (saved) setUploadedDocuments(JSON.parse(saved));
-}, []);
+    const saved = localStorage.getItem("uploadedDocs");
+    if (saved) setUploadedDocuments(JSON.parse(saved));
+  }, []);
 
 
   useEffect(() => {
-  localStorage.setItem("uploadedDocs", JSON.stringify(uploadedDocuments));
-}, [uploadedDocuments]);
+    localStorage.setItem("uploadedDocs", JSON.stringify(uploadedDocuments));
+  }, [uploadedDocuments]);
 
 
   return (

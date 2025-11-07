@@ -41,6 +41,10 @@ sqlc:
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/nibir1/go-fiber-postgres-REST-boilerplate/db/sqlc Store
 
+# To seed the database with initial course data
+seedCourses:
+	go run db/seed/seed_courses.go
+
 # To run Go tests with verbose output and code coverage
 test:
 	go test -v -cover ./...

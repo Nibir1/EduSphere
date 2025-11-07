@@ -9,21 +9,20 @@ import (
 )
 
 type Querier interface {
-	AddAccountBalance(ctx context.Context, arg AddAccountBalanceParams) (Account, error)
-	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
-	CreateEntry(ctx context.Context, arg CreateEntryParams) (Entry, error)
-	CreateTransfer(ctx context.Context, arg CreateTransferParams) (Transfer, error)
+	CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error)
+	CreateRecommendation(ctx context.Context, arg CreateRecommendationParams) (Recommendation, error)
+	CreateSummary(ctx context.Context, arg CreateSummaryParams) (Summary, error)
+	CreateTranscript(ctx context.Context, arg CreateTranscriptParams) (Transcript, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	DeleteAccount(ctx context.Context, id int64) error
-	GetAccount(ctx context.Context, id int64) (Account, error)
-	GetAccountForUpdate(ctx context.Context, id int64) (Account, error)
-	GetEntry(ctx context.Context, id int64) (Entry, error)
-	GetTransfer(ctx context.Context, id int64) (Transfer, error)
+	DeleteSummary(ctx context.Context, id int64) error
+	GetRecommendation(ctx context.Context, id int64) (Recommendation, error)
+	GetSummary(ctx context.Context, id int64) (Summary, error)
+	GetTranscript(ctx context.Context, id int64) (Transcript, error)
 	GetUser(ctx context.Context, username string) (User, error)
-	ListAccounts(ctx context.Context, arg ListAccountsParams) ([]Account, error)
-	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
-	ListTransfers(ctx context.Context, arg ListTransfersParams) ([]Transfer, error)
-	UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error)
+	ListCourses(ctx context.Context, limit int64) ([]Course, error)
+	ListRecommendations(ctx context.Context, userUsername string) ([]ListRecommendationsRow, error)
+	ListSummaries(ctx context.Context, userUsername string) ([]Summary, error)
+	ListTranscripts(ctx context.Context, userUsername string) ([]ListTranscriptsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)
