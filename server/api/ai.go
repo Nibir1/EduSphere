@@ -5,57 +5,98 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"time"
 )
 
-// Ollama request/response (chat)
+// Ollama message structure for chat requests
 type ollamaMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
+
+// Request/response structure
 type ollamaChatReq struct {
 	Model    string          `json:"model"`
 	Messages []ollamaMessage `json:"messages"`
 	Stream   bool            `json:"stream"`
-	Format   string          `json:"format,omitempty"` // "json" if we want structured output
+	Format   string          `json:"format,omitempty"` // "json" for structured output
 	Options  map[string]any  `json:"options,omitempty"`
 }
+
 type ollamaChatResp struct {
 	Message ollamaMessage `json:"message"`
-	// (other fields omitted)
+	Error   string        `json:"error,omitempty"`
 }
 
+// ------------------------------------------------------------------
+// callOllamaChat: safer, longer timeout + better error diagnostics
+// ------------------------------------------------------------------
 func callOllamaChat(ctx context.Context, baseURL, model string, messages []ollamaMessage, expectJSON bool) (string, error) {
 	url := fmt.Sprintf("%s/api/chat", baseURL)
 	reqBody := ollamaChatReq{
 		Model:    model,
 		Messages: messages,
-		Stream:   false,
+		Stream:   false, // we’re not streaming yet
 	}
 	if expectJSON {
 		reqBody.Format = "json"
 	}
+
 	b, _ := json.Marshal(reqBody)
 
-	httpClient := &http.Client{Timeout: 60 * time.Second}
-	req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))
+	// Extended timeout — Ollama can take 60–120s on model load
+	httpClient := &http.Client{
+		Timeout: 180 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
+
+	log.Printf("[AI] Sending request to Ollama: model=%s, len(messages)=%d, url=%s", model, len(messages), url)
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to reach Ollama: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Check HTTP errors first
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("ollama returned %d", resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
+		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(bodyBytes))
 	}
+
 	var out struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		Error string `json:"error,omitempty"`
 	}
+
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", err
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
+		log.Printf("[AI ERROR] failed to decode response: %v\nResponse body (truncated): %s", err, string(body))
+		return "", fmt.Errorf("invalid Ollama response: %w", err)
 	}
+
+	if out.Error != "" {
+		return "", fmt.Errorf("ollama error: %s", out.Error)
+	}
+
+	log.Printf("[AI] Ollama response (first 200 chars): %s", truncate(out.Message.Content, 200))
 	return out.Message.Content, nil
+}
+
+// Helper: safe truncation for log output
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "...(truncated)"
 }

@@ -12,3 +12,6 @@ RETURNING *;
 SELECT * FROM courses
 ORDER BY id
 LIMIT $1;
+
+-- name: ListAllCourses :many
+SELECT * FROM courses ORDER BY id ASC;

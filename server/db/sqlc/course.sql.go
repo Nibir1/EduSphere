@@ -65,6 +65,46 @@ func (q *Queries) CreateCourse(ctx context.Context, arg CreateCourseParams) (Cou
 	return i, err
 }
 
+const listAllCourses = `-- name: ListAllCourses :many
+SELECT id, code, name, language, grading_scale, organiser, learning_outcomes, prerequisites, teacher_name, teacher_email, course_link, created_at FROM courses ORDER BY id ASC
+`
+
+func (q *Queries) ListAllCourses(ctx context.Context) ([]Course, error) {
+	rows, err := q.db.QueryContext(ctx, listAllCourses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Course{}
+	for rows.Next() {
+		var i Course
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Language,
+			&i.GradingScale,
+			&i.Organiser,
+			&i.LearningOutcomes,
+			&i.Prerequisites,
+			&i.TeacherName,
+			&i.TeacherEmail,
+			&i.CourseLink,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCourses = `-- name: ListCourses :many
 SELECT id, code, name, language, grading_scale, organiser, learning_outcomes, prerequisites, teacher_name, teacher_email, course_link, created_at FROM courses
 ORDER BY id

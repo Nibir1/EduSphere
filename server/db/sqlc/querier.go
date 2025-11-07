@@ -19,6 +19,7 @@ type Querier interface {
 	GetSummary(ctx context.Context, id int64) (Summary, error)
 	GetTranscript(ctx context.Context, id int64) (Transcript, error)
 	GetUser(ctx context.Context, username string) (User, error)
+	ListAllCourses(ctx context.Context) ([]Course, error)
 	ListCourses(ctx context.Context, limit int64) ([]Course, error)
 	ListRecommendations(ctx context.Context, userUsername string) ([]ListRecommendationsRow, error)
 	ListSummaries(ctx context.Context, userUsername string) ([]Summary, error)

@@ -97,6 +97,7 @@ func (server *Server) setUpRoutes() {
 
 	// recommendations
 	auth.Post("/recommendations", server.createRecommendation) // body: { transcript_id }
+	auth.Post("/recommendations/generate", server.generateRecommendations)
 	auth.Get("/recommendations", server.listRecommendations)
 	auth.Get("/recommendations/:id", server.getRecommendation)
 
