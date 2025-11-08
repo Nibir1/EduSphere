@@ -39,17 +39,22 @@ func callOllamaChat(ctx context.Context, baseURL, model string, messages []ollam
 	reqBody := ollamaChatReq{
 		Model:    model,
 		Messages: messages,
-		Stream:   false, // we’re not streaming yet
+		Stream:   false,
+		Options: map[string]any{
+			"num_ctx":     4096, // larger context window
+			"num_predict": 512,  // limit generation
+			"temperature": 0.4,  // more deterministic
+		},
 	}
+
 	if expectJSON {
 		reqBody.Format = "json"
 	}
 
 	b, _ := json.Marshal(reqBody)
 
-	// Extended timeout — Ollama can take 60–120s on model load
 	httpClient := &http.Client{
-		Timeout: 180 * time.Second,
+		Timeout: 240 * time.Second,
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))
@@ -66,7 +71,6 @@ func callOllamaChat(ctx context.Context, baseURL, model string, messages []ollam
 	}
 	defer resp.Body.Close()
 
-	// Check HTTP errors first
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
 		return "", fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(bodyBytes))

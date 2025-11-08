@@ -1,7 +1,9 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/go-playground/validator/v10"
@@ -117,8 +119,23 @@ func (server *Server) setUpRoutes() {
 	auth.Post("/chat", server.chatOnce)
 }
 
-func (server *Server) Start(address string) error {
-	return server.app.Listen(address)
+func (s *Server) Start(address string) error {
+	// Preload Ollama model in the background to avoid first-request cold start
+	go func() {
+		log.Println("[INIT] Preloading Ollama model in background...")
+		_, err := callOllamaChat(context.Background(), s.config.OllamaBaseURL, s.config.OllamaModel, []ollamaMessage{
+			{Role: "system", Content: "ping"},
+			{Role: "user", Content: "hello"},
+		}, false)
+		if err != nil {
+			log.Printf("[INIT] Ollama preload failed: %v", err)
+		} else {
+			log.Println("[INIT] Ollama model ready ✅")
+		}
+	}()
+
+	// Start Fiber server
+	return s.app.Listen(address)
 }
 
 func errorResponse(err error) fiber.Map {

@@ -64,8 +64,21 @@ func (s *Server) generateScholarships(c *fiber.Ctx) error {
 
 	// 3️⃣ Build AI prompt
 	var sb strings.Builder
-	sb.WriteString("You are a helpful academic advisor. Based on the student's transcript and the following real scholarship opportunities found on the web, recommend the best 3–5 scholarships.\n")
-	sb.WriteString("Focus on IT, AI, or Software Engineering students.\n\n")
+	sb.WriteString(`
+You are an academic scholarship advisor.
+Your task: recommend scholarships — NOT university courses or classes.
+Use the student's transcript only to understand their background (e.g. Software Engineering, AI, Data Science).
+From the provided web search results, find the most relevant scholarships for this profile.
+
+Return ONLY scholarships (no courses, no degrees, no projects).
+Each result must include:
+- title (scholarship name)
+- description (what it offers or who it's for)
+- match (number 0–100)
+- link (URL to the scholarship)
+
+Respond only in valid JSON array format.
+`)
 
 	sb.WriteString("Transcript:\n\"\"\"\n")
 	sb.WriteString(txText)
@@ -124,11 +137,21 @@ Example of valid output:
 	log.Println(resp)
 	log.Println("------------------------------------------------------------")
 
-	// 6️⃣ Parse JSON response
+	// 6️⃣ Parse JSON response (smart parsing with nested fallback)
 	var recs []ScholarshipReco
+
+	// Try direct array first
 	if err := json.Unmarshal([]byte(resp), &recs); err != nil {
-		log.Printf("[DEBUG] JSON parse failed, fallback to manual extract: %v", err)
-		recs = extractScholarshipJSON(resp)
+		// Try nested "scholarships" key before logging fallback
+		var wrapper struct {
+			Scholarships []ScholarshipReco `json:"scholarships"`
+		}
+		if jerr := json.Unmarshal([]byte(resp), &wrapper); jerr == nil && len(wrapper.Scholarships) > 0 {
+			recs = wrapper.Scholarships
+		} else {
+			log.Printf("[DEBUG] JSON parse failed, fallback to manual extract: %v", err)
+			recs = extractScholarshipJSON(resp)
+		}
 	}
 
 	// 7️⃣ Clean and sanitize
@@ -147,7 +170,7 @@ Example of valid output:
 	// Sort by match score (desc)
 	sort.Slice(recs, func(i, j int) bool { return recs[i].Match > recs[j].Match })
 
-	// 8️⃣ Persist top results (optional)
+	// 8️⃣ Persist top results
 	ctx := context.Background()
 	toStore := recs
 	if len(toStore) > 5 {
