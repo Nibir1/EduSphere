@@ -54,7 +54,7 @@ func callOllamaChat(ctx context.Context, baseURL, model string, messages []ollam
 	b, _ := json.Marshal(reqBody)
 
 	httpClient := &http.Client{
-		Timeout: 240 * time.Second,
+		Timeout: 480 * time.Second,
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(b))

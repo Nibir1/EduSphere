@@ -16,15 +16,16 @@ type Querier interface {
 	CreateTranscript(ctx context.Context, arg CreateTranscriptParams) (Transcript, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteScholarship(ctx context.Context, arg DeleteScholarshipParams) error
-	DeleteSummary(ctx context.Context, id int64) error
+	DeleteSummary(ctx context.Context, arg DeleteSummaryParams) error
 	GetRecommendation(ctx context.Context, id int64) (Recommendation, error)
-	GetSummary(ctx context.Context, id int64) (Summary, error)
+	GetSummary(ctx context.Context, arg GetSummaryParams) (Summary, error)
 	GetTranscript(ctx context.Context, id int64) (Transcript, error)
 	GetUser(ctx context.Context, username string) (User, error)
 	ListAllCourses(ctx context.Context) ([]Course, error)
 	ListCourses(ctx context.Context, limit int64) ([]Course, error)
+	ListRecentScholarshipsByUser(ctx context.Context, arg ListRecentScholarshipsByUserParams) ([]Scholarship, error)
 	ListRecommendations(ctx context.Context, userUsername string) ([]ListRecommendationsRow, error)
-	ListScholarshipsByUser(ctx context.Context, arg ListScholarshipsByUserParams) ([]Scholarship, error)
+	ListScholarshipsByUser(ctx context.Context, userUsername string) ([]Scholarship, error)
 	ListSummaries(ctx context.Context, userUsername string) ([]Summary, error)
 	ListTranscripts(ctx context.Context, userUsername string) ([]ListTranscriptsRow, error)
 }

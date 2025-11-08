@@ -23,6 +23,7 @@ import (
 // @in header
 // @name Authorization
 
+// Server serves all HTTP routes for the EduSphere backend.
 type Server struct {
 	config     util.Config
 	store      db.Store
@@ -34,6 +35,7 @@ type Server struct {
 	summariesDir string
 }
 
+// NewServer creates and configures a new Fiber web server.
 func NewServer(config util.Config, store db.Store) (*Server, error) {
 	tokenMaker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
 	if err != nil {
@@ -42,6 +44,7 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 
 	app := fiber.New(fiber.Config{})
 
+	// --- Global Middleware ---
 	app.Use(logger.New())
 
 	allowedOrigins := config.AllowedOrigins
@@ -69,58 +72,68 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 		summariesDir: "./summaries",
 	}
 
-	// ensure folders
+	// Ensure upload and summary directories exist
 	_ = os.MkdirAll(server.uploadsDir, 0o755)
 	_ = os.MkdirAll(server.summariesDir, 0o755)
 
+	// Register all API routes
 	server.setUpRoutes()
 	return server, nil
 }
 
+// setUpRoutes defines all EduSphere API endpoints.
 func (server *Server) setUpRoutes() {
 	app := server.app
 
-	// Swagger if you like
+	// Swagger for interactive API docs
 	app.Get("/swagger/*", swagger.HandlerDefault)
 
-	// PUBLIC
+	// --- PUBLIC ROUTES ---
 	api := app.Group("/api")
 	api.Post("/users", server.createUser)
 	api.Post("/users/login", server.loginUser)
 
-	// web search (local DuckDuckGo)
+	// --- Web Search ---
 	api.Get("/websearch", server.handleLocalWebSearch)
 
-	// PROTECTED
+	// --- PROTECTED ROUTES (Require Authorization) ---
 	auth := api.Group("/", authMiddlewareFiber(server.tokenMaker))
 
-	// ====== NEW EDU-SPHERE ROUTES ======
-	// transcripts
+	// ====== EDU-SPHERE CORE FEATURES ======
+
+	// --- Transcript Management ---
 	auth.Post("/transcripts/upload", server.uploadTranscript)
 	auth.Get("/transcripts", server.listTranscripts)
 	auth.Get("/transcripts/:id", server.getTranscript)
 
-	// recommendations
-	auth.Post("/recommendations", server.createRecommendation) // body: { transcript_id }
+	// --- Recommendations ---
+	auth.Post("/recommendations", server.createRecommendation)
 	auth.Post("/recommendations/generate", server.generateRecommendations)
 	auth.Get("/recommendations", server.listRecommendations)
 	auth.Get("/recommendations/:id", server.getRecommendation)
 
-	// Scholarship generation via web search + AI
+	// --- Scholarships (AI + Web Search) ---
 	auth.Post("/scholarships/generate", server.generateScholarships)
 
-	// summaries
-	auth.Post("/summaries", server.createSummaryPDF) // body: { recommendation_id }
-	auth.Get("/summaries", server.listSummaries)
-	auth.Get("/summaries/:id/download", server.downloadSummaryPDF)
-	auth.Delete("/summaries/:id", server.deleteSummary)
+	// --- Summaries ---
+	// Step 1: Generate summary text (AI only, not saved)
+	auth.Post("/summaries/generate", server.generateSummary)
 
-	// chat (simple)
+	// Step 2: Create & save PDF (includes summary + recommendations + scholarships)
+	auth.Post("/summaries", server.createSummaryPDF)
+
+	// Step 3: Manage summaries
+	auth.Get("/summaries", server.listSummaries)                   // List user's saved PDFs
+	auth.Get("/summaries/:id/download", server.downloadSummaryPDF) // Download a specific PDF
+	auth.Delete("/summaries/:id", server.deleteSummary)            // Delete summary + file
+
+	// --- Simple AI Chat (for debugging/testing) ---
 	auth.Post("/chat", server.chatOnce)
 }
 
+// Start launches the Fiber HTTP server and preloads the Ollama model.
 func (s *Server) Start(address string) error {
-	// Preload Ollama model in the background to avoid first-request cold start
+	// Preload Ollama model to reduce first-request latency
 	go func() {
 		log.Println("[INIT] Preloading Ollama model in background...")
 		_, err := callOllamaChat(context.Background(), s.config.OllamaBaseURL, s.config.OllamaModel, []ollamaMessage{
@@ -138,6 +151,7 @@ func (s *Server) Start(address string) error {
 	return s.app.Listen(address)
 }
 
+// errorResponse provides a consistent JSON error payload.
 func errorResponse(err error) fiber.Map {
 	return fiber.Map{"error": err.Error()}
 }

@@ -9,8 +9,13 @@ RETURNING *;
 -- name: ListScholarshipsByUser :many
 SELECT * FROM scholarships
 WHERE user_username = $1
-ORDER BY id DESC
-LIMIT $2 OFFSET $3;
+ORDER BY match_score DESC;
+
+-- name: ListRecentScholarshipsByUser :many
+SELECT * FROM scholarships
+WHERE user_username = $1
+ORDER BY created_at DESC
+LIMIT $2;
 
 -- name: DeleteScholarship :exec
 DELETE FROM scholarships

@@ -9,34 +9,38 @@ import {
   Trash2,
   Loader2,
   Globe,
+  FileText,
 } from "lucide-react";
-import api from "../api/axiosClient";
+import api, { apiDownload } from "../api/axiosClient";
 
 export default function RecommendationsSection({ uploadedDocuments }) {
   const [courses, setCourses] = useState([]);
   const [scholarships, setScholarships] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchingScholarships, setFetchingScholarships] = useState(false);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [loadingSummaries, setLoadingSummaries] = useState(false);
   const [summaries, setSummaries] = useState([]);
+  const [aiSummary, setAiSummary] = useState("");
   const [lastRecoId, setLastRecoId] = useState(null);
 
-  // Retrieve last recommendation ID from localStorage
+  const [loading, setLoading] = useState(false);
+  const [fetchingScholarships, setFetchingScholarships] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loadingSummaries, setLoadingSummaries] = useState(false);
+  const [error, setError] = useState("");
+
+  // Load last recommendation ID from localStorage
   useEffect(() => {
     const rid = localStorage.getItem("last_reco_id");
     if (rid) setLastRecoId(parseInt(rid, 10));
   }, []);
 
-  // Fetch list of saved summaries
+  // Fetch saved summaries
   const fetchSummaries = async () => {
     setLoadingSummaries(true);
     try {
       const res = await api.get("/summaries");
       setSummaries(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load summaries:", err);
     } finally {
       setLoadingSummaries(false);
     }
@@ -46,7 +50,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     fetchSummaries();
   }, []);
 
-  // 🔹 Fetch AI-generated course recommendations
+  // 🔹 Generate AI-based course recommendations
   const fetchRecommendations = async () => {
     setLoading(true);
     setError("");
@@ -66,13 +70,30 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // Automatically trigger recommendations when tab loads
+  // Automatically generate recommendations once
   useEffect(() => {
     fetchRecommendations();
   }, []);
 
-  // 🔹 Fetch scholarships via web search + AI
+  // 🔹 Generate AI transcript summary
+  const generateSummary = async () => {
+    if (generatingSummary || fetchingScholarships) return;
+    setGeneratingSummary(true);
+    try {
+      const res = await api.post("/summaries/generate");
+      setAiSummary(res.data.summary_text || res.data.text || "");
+      alert("Summary generated successfully.");
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to generate summary.");
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
+  // 🔹 Fetch scholarships
   const fetchScholarships = async () => {
+    if (fetchingScholarships || generatingSummary) return;
     setFetchingScholarships(true);
     try {
       const res = await api.post("/scholarships/generate");
@@ -80,9 +101,8 @@ export default function RecommendationsSection({ uploadedDocuments }) {
         ? res.data.scholarships
         : [];
       setScholarships(list);
-      if (list.length === 0) {
+      if (list.length === 0)
         alert("No scholarships found for this profile yet.");
-      }
     } catch (e) {
       console.error(e);
       alert(e.response?.data?.error || "Failed to fetch scholarships.");
@@ -91,13 +111,19 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Save summary (PDF)
-  const saveSummary = async () => {
+  // 🔹 Save unified summary PDF (summary + scholarships + recommendations)
+  const saveSummaryPDF = async () => {
     if (!lastRecoId) return alert("No recommendation available to save yet.");
+    if (!aiSummary)
+      return alert("Generate a transcript summary before saving.");
     setSaving(true);
     try {
-      await api.post("/summaries", { recommendation_id: lastRecoId });
-      alert("✅ Summary PDF saved successfully!");
+      await api.post("/summaries", {
+        recommendation_id: lastRecoId,
+        summary_text: aiSummary,
+        include_scholarships: scholarships.length > 0, // only include if user fetched
+      });
+      alert("Summary PDF saved (includes courses and scholarships).");
       await fetchSummaries();
     } catch (e) {
       console.error(e);
@@ -107,24 +133,13 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Download summary
+  // 🔹 Download PDF
   const handleDownload = async (id) => {
     try {
-      const response = await api.get(`/summaries/${id}/download`, {
-        responseType: "blob",
-      });
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `summary_${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      await apiDownload(`/summaries/${id}/download`, `summary_${id}.pdf`);
     } catch (error) {
-      console.error(error);
-      alert("Failed to download PDF");
+      console.error("PDF download failed:", error);
+      alert("Failed to download PDF. Please try again.");
     }
   };
 
@@ -133,7 +148,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     if (!window.confirm("Are you sure you want to delete this summary?")) return;
     try {
       await api.delete(`/summaries/${id}`);
-      alert("🗑️ Summary deleted successfully");
+      alert("Summary deleted successfully.");
       await fetchSummaries();
     } catch (err) {
       console.error(err);
@@ -173,98 +188,33 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     <div className="space-y-8">
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-gray-300 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Documents Analyzed</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">
-                {uploadedDocuments.length}
-              </p>
-            </div>
-            <div className="rounded-full bg-blue-100 p-3">
-              <BookOpen className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-300 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Courses Found</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">
-                {courses.length}
-              </p>
-            </div>
-            <div className="rounded-full bg-indigo-100 p-3">
-              <TrendingUp className="h-6 w-6 text-indigo-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-300 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Scholarships</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">
-                {scholarships.length}
-              </p>
-            </div>
-            <div className="rounded-full bg-green-100 p-3">
-              <Award className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="Documents Analyzed"
+          value={uploadedDocuments.length}
+          icon={<BookOpen className="h-6 w-6 text-blue-600" />}
+        />
+        <StatCard
+          title="Courses Found"
+          value={courses.length}
+          icon={<TrendingUp className="h-6 w-6 text-indigo-600" />}
+        />
+        <StatCard
+          title="Scholarships"
+          value={scholarships.length}
+          icon={<Award className="h-6 w-6 text-green-600" />}
+        />
       </div>
 
       {/* Recommended Courses */}
-      <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">
-          Recommended Courses
-        </h2>
-        <div className="grid gap-4">
-          {courses.length === 0 && (
-            <p className="text-gray-500 text-sm">
-              No recommendations yet. Try uploading a transcript.
-            </p>
-          )}
-          {courses.map((course, idx) => (
-            <div
-              key={idx}
-              className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">
-                    {course.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {course.description}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="rounded-full bg-blue-100 px-3 py-1">
-                    <span className="text-sm font-semibold text-blue-600">
-                      {Math.round(course.match)}%
-                    </span>
-                  </div>
-                  <button className="text-xs font-medium text-blue-600 hover:underline">
-                    Learn More →
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <SectionTitle>Recommended Courses</SectionTitle>
+      <CourseList courses={courses} />
 
-      {/* Scholarship finder header + button */}
+      {/* Scholarships */}
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">
-          Scholarship Opportunities
-        </h2>
+        <SectionTitle>Scholarship Opportunities</SectionTitle>
         <button
           onClick={fetchScholarships}
-          disabled={fetchingScholarships}
+          disabled={fetchingScholarships || generatingSummary || saving}
           className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
         >
           <Globe className="w-4 h-4" />
@@ -272,70 +222,60 @@ export default function RecommendationsSection({ uploadedDocuments }) {
         </button>
       </div>
 
-      {/* Scholarships list */}
-      <div className="grid gap-4">
-        {fetchingScholarships && (
-          <div className="flex items-center justify-center py-8 text-gray-600">
-            <Loader2 className="h-5 w-5 animate-spin mr-2 text-green-600" />
-            Searching scholarships...
-          </div>
-        )}
+      <ScholarshipList
+        scholarships={scholarships}
+        loading={fetchingScholarships}
+      />
 
-        {!fetchingScholarships && scholarships.length === 0 && (
+      {/* --- AI Summary Section --- */}
+      <div className="p-6 rounded-lg border border-gray-300 bg-white">
+        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-indigo-600" /> Transcript Summary
+        </h2>
+        {aiSummary ? (
+          <p className="text-gray-700 text-sm whitespace-pre-line mb-4">
+            {aiSummary}
+          </p>
+        ) : (
           <p className="text-gray-500 text-sm">
-            No scholarships loaded yet. Click{" "}
-            <b>Find Scholarships</b> to search the web based on your transcript.
+            Generate a concise summary of your transcript using AI.
           </p>
         )}
-
-        {scholarships.map((sch, idx) => (
-          <div
-            key={idx}
-            className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{sch.title}</h3>
-                <p className="mt-1 text-sm text-gray-500">{sch.description}</p>
-                {sch.link && (
-                  <a
-                    href={sch.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-green-700 hover:underline inline-block mt-1"
-                  >
-                    View details →
-                  </a>
-                )}
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <div className="rounded-full bg-green-100 px-3 py-1">
-                  <span className="text-sm font-semibold text-green-600">
-                    {Math.round(sch.match)}%
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Save Result Button */}
-      {lastRecoId && (
-        <div className="flex justify-end">
+        <div className="flex gap-3">
           <button
-            onClick={saveSummary}
-            disabled={saving}
-            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-all"
+            onClick={generateSummary}
+            disabled={
+              generatingSummary || fetchingScholarships || saving || loading
+            }
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60"
           >
-            {saving ? "Saving..." : "Save Result (PDF)"}
+            {generatingSummary ? "Generating..." : "Generate Summary"}
           </button>
+
+          {aiSummary && (
+            <button
+              onClick={saveSummaryPDF}
+              disabled={
+                saving ||
+                fetchingScholarships || // 🔹 disable while fetching scholarships
+                !aiSummary.trim()       // 🔹 disable if summary is empty
+              }
+              className="rounded-lg bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
+            >
+              {saving
+                ? "Saving..."
+                : fetchingScholarships
+                  ? "Please wait (loading scholarships)..."
+                  : "Save Full Report (PDF)"}
+            </button>
+          )}
+
         </div>
-      )}
+      </div>
 
       {/* Saved Summaries */}
       <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">Saved Results</h2>
+        <SectionTitle>Saved Results</SectionTitle>
         {loadingSummaries ? (
           <p className="text-gray-500 text-sm">Loading saved summaries...</p>
         ) : summaries.length === 0 ? (
@@ -375,3 +315,95 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     </div>
   );
 }
+
+// --- Small UI Components ---
+const StatCard = ({ title, value, icon }) => (
+  <div className="rounded-lg border border-gray-300 bg-white p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm text-gray-500">{title}</p>
+        <p className="mt-1 text-3xl font-bold text-gray-900">{value}</p>
+      </div>
+      <div className="rounded-full bg-gray-100 p-3">{icon}</div>
+    </div>
+  </div>
+);
+
+const SectionTitle = ({ children }) => (
+  <h2 className="mb-4 text-xl font-bold text-gray-900">{children}</h2>
+);
+
+const CourseList = ({ courses }) => (
+  <div className="grid gap-4">
+    {courses.length === 0 ? (
+      <p className="text-gray-500 text-sm">
+        No recommendations yet. Try uploading a transcript.
+      </p>
+    ) : (
+      courses.map((course, idx) => (
+        <div
+          key={idx}
+          className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{course.title}</h3>
+              <p className="mt-1 text-sm text-gray-500">{course.description}</p>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="rounded-full bg-blue-100 px-3 py-1">
+                <span className="text-sm font-semibold text-blue-600">
+                  {Math.round(course.match)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+);
+
+const ScholarshipList = ({ scholarships, loading }) => {
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-8 text-gray-600">
+        <Loader2 className="h-5 w-5 animate-spin mr-2 text-green-600" />
+        Searching scholarships...
+      </div>
+    );
+  return (
+    <div className="grid gap-4">
+      {scholarships.map((sch, idx) => (
+        <div
+          key={idx}
+          className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">{sch.title}</h3>
+              <p className="mt-1 text-sm text-gray-500">{sch.description}</p>
+              {sch.link && (
+                <a
+                  href={sch.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-green-700 hover:underline inline-block mt-1"
+                >
+                  View details →
+                </a>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="rounded-full bg-green-100 px-3 py-1">
+                <span className="text-sm font-semibold text-green-600">
+                  {Math.round(sch.match)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};

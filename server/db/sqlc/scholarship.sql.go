@@ -63,21 +63,57 @@ func (q *Queries) DeleteScholarship(ctx context.Context, arg DeleteScholarshipPa
 	return err
 }
 
+const listRecentScholarshipsByUser = `-- name: ListRecentScholarshipsByUser :many
+SELECT id, user_username, title, description, match_score, link, created_at FROM scholarships
+WHERE user_username = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListRecentScholarshipsByUserParams struct {
+	UserUsername string `json:"user_username"`
+	Limit        int64  `json:"limit"`
+}
+
+func (q *Queries) ListRecentScholarshipsByUser(ctx context.Context, arg ListRecentScholarshipsByUserParams) ([]Scholarship, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentScholarshipsByUser, arg.UserUsername, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Scholarship{}
+	for rows.Next() {
+		var i Scholarship
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserUsername,
+			&i.Title,
+			&i.Description,
+			&i.MatchScore,
+			&i.Link,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listScholarshipsByUser = `-- name: ListScholarshipsByUser :many
 SELECT id, user_username, title, description, match_score, link, created_at FROM scholarships
 WHERE user_username = $1
-ORDER BY id DESC
-LIMIT $2 OFFSET $3
+ORDER BY match_score DESC
 `
 
-type ListScholarshipsByUserParams struct {
-	UserUsername string `json:"user_username"`
-	Limit        int64  `json:"limit"`
-	Offset       int64  `json:"offset"`
-}
-
-func (q *Queries) ListScholarshipsByUser(ctx context.Context, arg ListScholarshipsByUserParams) ([]Scholarship, error) {
-	rows, err := q.db.QueryContext(ctx, listScholarshipsByUser, arg.UserUsername, arg.Limit, arg.Offset)
+func (q *Queries) ListScholarshipsByUser(ctx context.Context, userUsername string) ([]Scholarship, error) {
+	rows, err := q.db.QueryContext(ctx, listScholarshipsByUser, userUsername)
 	if err != nil {
 		return nil, err
 	}

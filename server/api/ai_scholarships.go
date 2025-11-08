@@ -66,9 +66,9 @@ func (s *Server) generateScholarships(c *fiber.Ctx) error {
 	var sb strings.Builder
 	sb.WriteString(`
 You are an academic scholarship advisor.
-Your task: recommend scholarships — NOT university courses or classes.
+Your task: identify scholarships — NOT university courses or degrees.
 Use the student's transcript only to understand their background (e.g. Software Engineering, AI, Data Science).
-From the provided web search results, find the most relevant scholarships for this profile.
+From the provided web search results, list the most relevant scholarships for this profile.
 
 Return ONLY scholarships (no courses, no degrees, no projects).
 Each result must include:
@@ -77,7 +77,7 @@ Each result must include:
 - match (number 0–100)
 - link (URL to the scholarship)
 
-Respond only in valid JSON array format.
+Respond ONLY in valid JSON format.
 `)
 
 	sb.WriteString("Transcript:\n\"\"\"\n")
@@ -101,23 +101,14 @@ Respond only in valid JSON array format.
 			Role: "system",
 			Content: `
 You are a strict JSON generator.
-Always return a valid JSON array, even if there is only one scholarship.
-Do not include markdown, code fences, explanations, or text outside the array.
-Each element must have:
+Always return either a JSON array or a JSON object containing "scholarships": [ ... ].
+Do not include markdown, code fences, or commentary.
+
+Each scholarship must contain:
 - "title": string
 - "description": string
 - "match": number (0–100)
 - "link": string (valid URL)
-
-Example of valid output:
-[
-  {
-    "title": "Google DeepMind AI Master's Scholarship",
-    "description": "Supports AI students at top universities.",
-    "match": 95.3,
-    "link": "https://www.iie.org/programs/google-deepmind-ai-masters-scholarships/"
-  }
-]
 			`,
 		},
 		{
@@ -137,12 +128,12 @@ Example of valid output:
 	log.Println(resp)
 	log.Println("------------------------------------------------------------")
 
-	// 6️⃣ Parse JSON response (smart parsing with nested fallback)
+	// 6️⃣ Parse JSON response (improved multi-layer parsing)
 	var recs []ScholarshipReco
 
-	// Try direct array first
+	// Try parsing as a plain array
 	if err := json.Unmarshal([]byte(resp), &recs); err != nil {
-		// Try nested "scholarships" key before logging fallback
+		// Try parsing with a "scholarships" wrapper
 		var wrapper struct {
 			Scholarships []ScholarshipReco `json:"scholarships"`
 		}
@@ -154,13 +145,13 @@ Example of valid output:
 		}
 	}
 
-	// 7️⃣ Clean and sanitize
+	// 7️⃣ Clean and sanitize results
 	filtered := make([]ScholarshipReco, 0, len(recs))
 	for _, r := range recs {
 		r.Title = strings.TrimSpace(r.Title)
 		r.Description = strings.TrimSpace(r.Description)
 		r.Link = strings.TrimSpace(r.Link)
-		if r.Title == "" {
+		if r.Title == "" || r.Link == "" {
 			continue
 		}
 		filtered = append(filtered, r)
@@ -168,15 +159,11 @@ Example of valid output:
 	recs = filtered
 
 	// Sort by match score (desc)
-	sort.Slice(recs, func(i, j int) bool { return recs[i].Match > recs[j].Match })
+	sort.SliceStable(recs, func(i, j int) bool { return recs[i].Match > recs[j].Match })
 
-	// 8️⃣ Persist top results
+	// 8️⃣ Persist all valid results
 	ctx := context.Background()
-	toStore := recs
-	if len(toStore) > 5 {
-		toStore = toStore[:5]
-	}
-	for _, r := range toStore {
+	for _, r := range recs {
 		_, err := s.store.CreateScholarship(ctx, db.CreateScholarshipParams{
 			UserUsername: payload.Username,
 			Title:        r.Title,
@@ -185,20 +172,22 @@ Example of valid output:
 			Link:         sql.NullString{String: r.Link, Valid: r.Link != ""},
 		})
 		if err != nil {
-			log.Printf("[DB] Save scholarship failed: %v", err)
+			log.Printf("[DB] Save scholarship failed for %s: %v", r.Title, err)
 		}
 	}
 
 	// 9️⃣ Log parsed results
 	log.Println("------------------------------------------------------------")
-	log.Println("[DEBUG] Parsed Scholarship Recommendations:")
+	log.Printf("[DEBUG] Parsed Scholarship Recommendations (%d total):", len(recs))
 	for i, r := range recs {
 		log.Printf("%d) %s (%.2f%%) — %s", i+1, r.Title, r.Match, r.Link)
 	}
 	log.Println("------------------------------------------------------------")
 
+	// 10️⃣ Return all scholarships to frontend
 	return c.JSON(fiber.Map{
 		"user":         payload.Username,
+		"count":        len(recs),
 		"scholarships": recs,
 		"generated_at": time.Now(),
 	})

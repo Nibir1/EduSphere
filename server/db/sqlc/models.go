@@ -45,11 +45,12 @@ type Scholarship struct {
 }
 
 type Summary struct {
-	ID               int64     `json:"id"`
-	UserUsername     string    `json:"user_username"`
-	RecommendationID int64     `json:"recommendation_id"`
-	PdfPath          string    `json:"pdf_path"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID               int64          `json:"id"`
+	UserUsername     string         `json:"user_username"`
+	RecommendationID sql.NullInt64  `json:"recommendation_id"`
+	SummaryText      sql.NullString `json:"summary_text"`
+	PdfPath          sql.NullString `json:"pdf_path"`
+	CreatedAt        time.Time      `json:"created_at"`
 }
 
 type Transcript struct {

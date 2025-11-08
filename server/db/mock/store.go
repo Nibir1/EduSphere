@@ -140,7 +140,7 @@ func (mr *MockStoreMockRecorder) DeleteScholarship(arg0, arg1 interface{}) *gomo
 }
 
 // DeleteSummary mocks base method.
-func (m *MockStore) DeleteSummary(arg0 context.Context, arg1 int64) error {
+func (m *MockStore) DeleteSummary(arg0 context.Context, arg1 db.DeleteSummaryParams) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteSummary", arg0, arg1)
 	ret0, _ := ret[0].(error)
@@ -169,7 +169,7 @@ func (mr *MockStoreMockRecorder) GetRecommendation(arg0, arg1 interface{}) *gomo
 }
 
 // GetSummary mocks base method.
-func (m *MockStore) GetSummary(arg0 context.Context, arg1 int64) (db.Summary, error) {
+func (m *MockStore) GetSummary(arg0 context.Context, arg1 db.GetSummaryParams) (db.Summary, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSummary", arg0, arg1)
 	ret0, _ := ret[0].(db.Summary)
@@ -243,6 +243,21 @@ func (mr *MockStoreMockRecorder) ListCourses(arg0, arg1 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListCourses", reflect.TypeOf((*MockStore)(nil).ListCourses), arg0, arg1)
 }
 
+// ListRecentScholarshipsByUser mocks base method.
+func (m *MockStore) ListRecentScholarshipsByUser(arg0 context.Context, arg1 db.ListRecentScholarshipsByUserParams) ([]db.Scholarship, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListRecentScholarshipsByUser", arg0, arg1)
+	ret0, _ := ret[0].([]db.Scholarship)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListRecentScholarshipsByUser indicates an expected call of ListRecentScholarshipsByUser.
+func (mr *MockStoreMockRecorder) ListRecentScholarshipsByUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRecentScholarshipsByUser", reflect.TypeOf((*MockStore)(nil).ListRecentScholarshipsByUser), arg0, arg1)
+}
+
 // ListRecommendations mocks base method.
 func (m *MockStore) ListRecommendations(arg0 context.Context, arg1 string) ([]db.ListRecommendationsRow, error) {
 	m.ctrl.T.Helper()
@@ -259,7 +274,7 @@ func (mr *MockStoreMockRecorder) ListRecommendations(arg0, arg1 interface{}) *go
 }
 
 // ListScholarshipsByUser mocks base method.
-func (m *MockStore) ListScholarshipsByUser(arg0 context.Context, arg1 db.ListScholarshipsByUserParams) ([]db.Scholarship, error) {
+func (m *MockStore) ListScholarshipsByUser(arg0 context.Context, arg1 string) ([]db.Scholarship, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListScholarshipsByUser", arg0, arg1)
 	ret0, _ := ret[0].([]db.Scholarship)

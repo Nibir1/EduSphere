@@ -7,28 +7,36 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createSummary = `-- name: CreateSummary :one
 INSERT INTO summaries (
-  user_username, recommendation_id, pdf_path
-) VALUES ($1, $2, $3)
-RETURNING id, user_username, recommendation_id, pdf_path, created_at
+  user_username, recommendation_id, summary_text, pdf_path
+) VALUES ($1, $2, $3, $4)
+RETURNING id, user_username, recommendation_id, summary_text, pdf_path, created_at
 `
 
 type CreateSummaryParams struct {
-	UserUsername     string `json:"user_username"`
-	RecommendationID int64  `json:"recommendation_id"`
-	PdfPath          string `json:"pdf_path"`
+	UserUsername     string         `json:"user_username"`
+	RecommendationID sql.NullInt64  `json:"recommendation_id"`
+	SummaryText      sql.NullString `json:"summary_text"`
+	PdfPath          sql.NullString `json:"pdf_path"`
 }
 
 func (q *Queries) CreateSummary(ctx context.Context, arg CreateSummaryParams) (Summary, error) {
-	row := q.db.QueryRowContext(ctx, createSummary, arg.UserUsername, arg.RecommendationID, arg.PdfPath)
+	row := q.db.QueryRowContext(ctx, createSummary,
+		arg.UserUsername,
+		arg.RecommendationID,
+		arg.SummaryText,
+		arg.PdfPath,
+	)
 	var i Summary
 	err := row.Scan(
 		&i.ID,
 		&i.UserUsername,
 		&i.RecommendationID,
+		&i.SummaryText,
 		&i.PdfPath,
 		&i.CreatedAt,
 	)
@@ -36,25 +44,42 @@ func (q *Queries) CreateSummary(ctx context.Context, arg CreateSummaryParams) (S
 }
 
 const deleteSummary = `-- name: DeleteSummary :exec
-DELETE FROM summaries WHERE id = $1
+DELETE FROM summaries
+WHERE id = $1
+  AND user_username = $2
 `
 
-func (q *Queries) DeleteSummary(ctx context.Context, id int64) error {
-	_, err := q.db.ExecContext(ctx, deleteSummary, id)
+type DeleteSummaryParams struct {
+	ID           int64  `json:"id"`
+	UserUsername string `json:"user_username"`
+}
+
+func (q *Queries) DeleteSummary(ctx context.Context, arg DeleteSummaryParams) error {
+	_, err := q.db.ExecContext(ctx, deleteSummary, arg.ID, arg.UserUsername)
 	return err
 }
 
 const getSummary = `-- name: GetSummary :one
-SELECT id, user_username, recommendation_id, pdf_path, created_at FROM summaries WHERE id = $1 LIMIT 1
+SELECT id, user_username, recommendation_id, summary_text, pdf_path, created_at
+FROM summaries
+WHERE id = $1
+  AND user_username = $2
+LIMIT 1
 `
 
-func (q *Queries) GetSummary(ctx context.Context, id int64) (Summary, error) {
-	row := q.db.QueryRowContext(ctx, getSummary, id)
+type GetSummaryParams struct {
+	ID           int64  `json:"id"`
+	UserUsername string `json:"user_username"`
+}
+
+func (q *Queries) GetSummary(ctx context.Context, arg GetSummaryParams) (Summary, error) {
+	row := q.db.QueryRowContext(ctx, getSummary, arg.ID, arg.UserUsername)
 	var i Summary
 	err := row.Scan(
 		&i.ID,
 		&i.UserUsername,
 		&i.RecommendationID,
+		&i.SummaryText,
 		&i.PdfPath,
 		&i.CreatedAt,
 	)
@@ -62,9 +87,10 @@ func (q *Queries) GetSummary(ctx context.Context, id int64) (Summary, error) {
 }
 
 const listSummaries = `-- name: ListSummaries :many
-SELECT id, user_username, recommendation_id, pdf_path, created_at FROM summaries
+SELECT id, user_username, recommendation_id, summary_text, pdf_path, created_at
+FROM summaries
 WHERE user_username = $1
-ORDER BY id DESC
+ORDER BY created_at DESC
 `
 
 func (q *Queries) ListSummaries(ctx context.Context, userUsername string) ([]Summary, error) {
@@ -80,6 +106,7 @@ func (q *Queries) ListSummaries(ctx context.Context, userUsername string) ([]Sum
 			&i.ID,
 			&i.UserUsername,
 			&i.RecommendationID,
+			&i.SummaryText,
 			&i.PdfPath,
 			&i.CreatedAt,
 		); err != nil {

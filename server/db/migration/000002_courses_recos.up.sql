@@ -36,14 +36,16 @@ CREATE TABLE recommendations (
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
--- Saved summaries (downloadable PDFs)
+-- Saved summaries (AI text + downloadable PDFs)
 CREATE TABLE summaries (
   id BIGSERIAL PRIMARY KEY,
   user_username VARCHAR NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-  recommendation_id BIGINT NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
-  pdf_path TEXT NOT NULL,
+  recommendation_id BIGINT REFERENCES recommendations(id) ON DELETE CASCADE, -- now optional
+  summary_text TEXT,                           -- new: store AI-generated summary text
+  pdf_path TEXT,                               -- still used for generated PDF file path
   created_at TIMESTAMP NOT NULL DEFAULT now()
 );
+
 
 -- Helpful indexes
 CREATE INDEX ON transcripts(user_username);
