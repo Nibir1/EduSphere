@@ -49,6 +49,19 @@ seedCourses:
 test:
 	go test -v -cover ./...
 
+# To test the local web search API endpoint
+websearch-test:
+	@echo "Testing Brave web search endpoint..."
+	curl -s -H "X-Subscription-Token: $(BRAVE_API_KEY)" \
+	     "http://localhost:8080/api/websearch?q=AI+scholarships" | jq
+
+# To test the Brave Search API directly
+brave-direct-test:
+	@echo "Querying Brave Search API directly..."
+	curl -s -H "X-Subscription-Token: ${BRAVE_API_KEY}" \
+	     "https://api.search.brave.com/res/v1/web/search?q=AI+scholarships" | jq
+
+
 # To run the Go server application
 server:
 	go run main.go

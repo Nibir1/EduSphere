@@ -86,6 +86,9 @@ func (server *Server) setUpRoutes() {
 	api.Post("/users", server.createUser)
 	api.Post("/users/login", server.loginUser)
 
+	// web search (local DuckDuckGo)
+	api.Get("/websearch", server.handleLocalWebSearch)
+
 	// PROTECTED
 	auth := api.Group("/", authMiddlewareFiber(server.tokenMaker))
 
@@ -100,6 +103,9 @@ func (server *Server) setUpRoutes() {
 	auth.Post("/recommendations/generate", server.generateRecommendations)
 	auth.Get("/recommendations", server.listRecommendations)
 	auth.Get("/recommendations/:id", server.getRecommendation)
+
+	// Scholarship generation via web search + AI
+	auth.Post("/scholarships/generate", server.generateScholarships)
 
 	// summaries
 	auth.Post("/summaries", server.createSummaryPDF) // body: { recommendation_id }

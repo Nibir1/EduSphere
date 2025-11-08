@@ -8,6 +8,7 @@ import {
   Download,
   Trash2,
   Loader2,
+  Globe,
 } from "lucide-react";
 import api from "../api/axiosClient";
 
@@ -15,6 +16,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
   const [courses, setCourses] = useState([]);
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [fetchingScholarships, setFetchingScholarships] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
@@ -44,7 +46,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     fetchSummaries();
   }, []);
 
-  // 🔹 Fetch dynamic AI recommendations from backend
+  // 🔹 Fetch AI-generated course recommendations
   const fetchRecommendations = async () => {
     setLoading(true);
     setError("");
@@ -52,7 +54,6 @@ export default function RecommendationsSection({ uploadedDocuments }) {
       const res = await api.post("/recommendations/generate");
       setCourses(res.data.courses || []);
       setScholarships(res.data.scholarships || []);
-      // save last reco id for "Save Result (PDF)"
       if (res.data.id) localStorage.setItem("last_reco_id", res.data.id);
     } catch (err) {
       console.error("Failed to fetch recommendations:", err);
@@ -69,6 +70,26 @@ export default function RecommendationsSection({ uploadedDocuments }) {
   useEffect(() => {
     fetchRecommendations();
   }, []);
+
+  // 🔹 Fetch scholarships via web search + AI
+  const fetchScholarships = async () => {
+    setFetchingScholarships(true);
+    try {
+      const res = await api.post("/scholarships/generate");
+      const list = Array.isArray(res.data?.scholarships)
+        ? res.data.scholarships
+        : [];
+      setScholarships(list);
+      if (list.length === 0) {
+        alert("No scholarships found for this profile yet.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e.response?.data?.error || "Failed to fetch scholarships.");
+    } finally {
+      setFetchingScholarships(false);
+    }
+  };
 
   // 🔹 Save summary (PDF)
   const saveSummary = async () => {
@@ -236,45 +257,67 @@ export default function RecommendationsSection({ uploadedDocuments }) {
         </div>
       </div>
 
-      {/* Recommended Scholarships */}
-      <div>
-        <h2 className="mb-4 text-xl font-bold text-gray-900">
+      {/* Scholarship finder header + button */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">
           Scholarship Opportunities
         </h2>
-        <div className="grid gap-4">
-          {scholarships.length === 0 && (
-            <p className="text-gray-500 text-sm">
-              No scholarships found for this profile yet.
-            </p>
-          )}
-          {scholarships.map((scholarship, idx) => (
-            <div
-              key={idx}
-              className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">
-                    {scholarship.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {scholarship.description}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="rounded-full bg-green-100 px-3 py-1">
-                    <span className="text-sm font-semibold text-green-600">
-                      {Math.round(scholarship.match)}%
-                    </span>
-                  </div>
-                  <button className="text-xs font-medium text-green-600 hover:underline">
-                    Apply Now →
-                  </button>
+        <button
+          onClick={fetchScholarships}
+          disabled={fetchingScholarships}
+          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
+        >
+          <Globe className="w-4 h-4" />
+          {fetchingScholarships ? "Searching..." : "Find Scholarships"}
+        </button>
+      </div>
+
+      {/* Scholarships list */}
+      <div className="grid gap-4">
+        {fetchingScholarships && (
+          <div className="flex items-center justify-center py-8 text-gray-600">
+            <Loader2 className="h-5 w-5 animate-spin mr-2 text-green-600" />
+            Searching scholarships...
+          </div>
+        )}
+
+        {!fetchingScholarships && scholarships.length === 0 && (
+          <p className="text-gray-500 text-sm">
+            No scholarships loaded yet. Click{" "}
+            <b>Find Scholarships</b> to search the web based on your transcript.
+          </p>
+        )}
+
+        {scholarships.map((sch, idx) => (
+          <div
+            key={idx}
+            className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">{sch.title}</h3>
+                <p className="mt-1 text-sm text-gray-500">{sch.description}</p>
+                {sch.link && (
+                  <a
+                    href={sch.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-green-700 hover:underline inline-block mt-1"
+                  >
+                    View details →
+                  </a>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="rounded-full bg-green-100 px-3 py-1">
+                  <span className="text-sm font-semibold text-green-600">
+                    {Math.round(sch.match)}%
+                  </span>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {/* Save Result Button */}

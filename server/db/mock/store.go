@@ -65,6 +65,21 @@ func (mr *MockStoreMockRecorder) CreateRecommendation(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRecommendation", reflect.TypeOf((*MockStore)(nil).CreateRecommendation), arg0, arg1)
 }
 
+// CreateScholarship mocks base method.
+func (m *MockStore) CreateScholarship(arg0 context.Context, arg1 db.CreateScholarshipParams) (db.Scholarship, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateScholarship", arg0, arg1)
+	ret0, _ := ret[0].(db.Scholarship)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateScholarship indicates an expected call of CreateScholarship.
+func (mr *MockStoreMockRecorder) CreateScholarship(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateScholarship", reflect.TypeOf((*MockStore)(nil).CreateScholarship), arg0, arg1)
+}
+
 // CreateSummary mocks base method.
 func (m *MockStore) CreateSummary(arg0 context.Context, arg1 db.CreateSummaryParams) (db.Summary, error) {
 	m.ctrl.T.Helper()
@@ -108,6 +123,20 @@ func (m *MockStore) CreateUser(arg0 context.Context, arg1 db.CreateUserParams) (
 func (mr *MockStoreMockRecorder) CreateUser(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateUser", reflect.TypeOf((*MockStore)(nil).CreateUser), arg0, arg1)
+}
+
+// DeleteScholarship mocks base method.
+func (m *MockStore) DeleteScholarship(arg0 context.Context, arg1 db.DeleteScholarshipParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteScholarship", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteScholarship indicates an expected call of DeleteScholarship.
+func (mr *MockStoreMockRecorder) DeleteScholarship(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteScholarship", reflect.TypeOf((*MockStore)(nil).DeleteScholarship), arg0, arg1)
 }
 
 // DeleteSummary mocks base method.
@@ -227,6 +256,21 @@ func (m *MockStore) ListRecommendations(arg0 context.Context, arg1 string) ([]db
 func (mr *MockStoreMockRecorder) ListRecommendations(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListRecommendations", reflect.TypeOf((*MockStore)(nil).ListRecommendations), arg0, arg1)
+}
+
+// ListScholarshipsByUser mocks base method.
+func (m *MockStore) ListScholarshipsByUser(arg0 context.Context, arg1 db.ListScholarshipsByUserParams) ([]db.Scholarship, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListScholarshipsByUser", arg0, arg1)
+	ret0, _ := ret[0].([]db.Scholarship)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListScholarshipsByUser indicates an expected call of ListScholarshipsByUser.
+func (mr *MockStoreMockRecorder) ListScholarshipsByUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListScholarshipsByUser", reflect.TypeOf((*MockStore)(nil).ListScholarshipsByUser), arg0, arg1)
 }
 
 // ListSummaries mocks base method.

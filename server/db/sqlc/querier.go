@@ -11,9 +11,11 @@ import (
 type Querier interface {
 	CreateCourse(ctx context.Context, arg CreateCourseParams) (Course, error)
 	CreateRecommendation(ctx context.Context, arg CreateRecommendationParams) (Recommendation, error)
+	CreateScholarship(ctx context.Context, arg CreateScholarshipParams) (Scholarship, error)
 	CreateSummary(ctx context.Context, arg CreateSummaryParams) (Summary, error)
 	CreateTranscript(ctx context.Context, arg CreateTranscriptParams) (Transcript, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	DeleteScholarship(ctx context.Context, arg DeleteScholarshipParams) error
 	DeleteSummary(ctx context.Context, id int64) error
 	GetRecommendation(ctx context.Context, id int64) (Recommendation, error)
 	GetSummary(ctx context.Context, id int64) (Summary, error)
@@ -22,6 +24,7 @@ type Querier interface {
 	ListAllCourses(ctx context.Context) ([]Course, error)
 	ListCourses(ctx context.Context, limit int64) ([]Course, error)
 	ListRecommendations(ctx context.Context, userUsername string) ([]ListRecommendationsRow, error)
+	ListScholarshipsByUser(ctx context.Context, arg ListScholarshipsByUserParams) ([]Scholarship, error)
 	ListSummaries(ctx context.Context, userUsername string) ([]Summary, error)
 	ListTranscripts(ctx context.Context, userUsername string) ([]ListTranscriptsRow, error)
 }

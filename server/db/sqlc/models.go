@@ -10,14 +10,6 @@ import (
 	"time"
 )
 
-type Account struct {
-	ID        int64     `json:"id"`
-	Owner     string    `json:"owner"`
-	Balance   int64     `json:"balance"`
-	Currency  string    `json:"currency"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 type Course struct {
 	ID               int64          `json:"id"`
 	Code             string         `json:"code"`
@@ -33,20 +25,22 @@ type Course struct {
 	CreatedAt        time.Time      `json:"created_at"`
 }
 
-type Entry struct {
-	ID        int64 `json:"id"`
-	AccountID int64 `json:"account_id"`
-	// can be positive or negative
-	Amount    int64     `json:"amount"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 type Recommendation struct {
 	ID           int64           `json:"id"`
 	UserUsername string          `json:"user_username"`
 	TranscriptID sql.NullInt64   `json:"transcript_id"`
 	Summary      sql.NullString  `json:"summary"`
 	Payload      json.RawMessage `json:"payload"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+type Scholarship struct {
+	ID           int64           `json:"id"`
+	UserUsername string          `json:"user_username"`
+	Title        string          `json:"title"`
+	Description  sql.NullString  `json:"description"`
+	MatchScore   sql.NullFloat64 `json:"match_score"`
+	Link         sql.NullString  `json:"link"`
 	CreatedAt    time.Time       `json:"created_at"`
 }
 
@@ -65,15 +59,6 @@ type Transcript struct {
 	TextExtracted sql.NullString `json:"text_extracted"`
 	Meta          []byte         `json:"meta"`
 	CreatedAt     time.Time      `json:"created_at"`
-}
-
-type Transfer struct {
-	ID            int64 `json:"id"`
-	FromAccountID int64 `json:"from_account_id"`
-	ToAccountID   int64 `json:"to_account_id"`
-	// must be positive
-	Amount    int64     `json:"amount"`
-	CreatedAt time.Time `json:"created_at"`
 }
 
 type User struct {

@@ -9,16 +9,25 @@ import (
 
 // Config represents the application configuration loaded from a file or environment variables
 type Config struct {
-	DBDriver            string        `mapstructure:"DB_DRIVER"`             // Database driver to use (e.g., "mysql", "postgres")
-	DBSource            string        `mapstructure:"DB_SOURCE"`             // Database connection source string
-	ServerAddress       string        `mapstructure:"SERVER_ADDRESS"`        // Server address where the application listens (e.g., "localhost:8080")
-	TokenSymmetricKey   string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`   // Symmetric key used for token signing (should be kept secret)
-	AccessTokenDuration time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"` // Duration for which access tokens are valid
-	AllowedOrigins      string        `mapstructure:"ALLOWED_ORIGINS"`       // Comma-separated list of allowed origins for CORS
-	OllamaBaseURL       string        `mapstructure:"OLLAMA_BASE_URL"`       // e.g. http://localhost:11434
-	OllamaModel         string        `mapstructure:"OLLAMA_MODEL"`          // e.g. gemma3:4b-it-qat
-	OCRFallbackEnabled  bool          `mapstructure:"OCR_FALLBACK_ENABLED"`  // true/false (requires tesseract installed)
-	UploadDir           string        `mapstructure:"UPLOAD_DIR"`            // Directory where uploaded files are stored
+	DBDriver            string        `mapstructure:"DB_DRIVER"`
+	DBSource            string        `mapstructure:"DB_SOURCE"`
+	ServerAddress       string        `mapstructure:"SERVER_ADDRESS"`
+	TokenSymmetricKey   string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
+	AccessTokenDuration time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
+	AllowedOrigins      string        `mapstructure:"ALLOWED_ORIGINS"`
+	UploadDir           string        `mapstructure:"UPLOAD_DIR"`
+
+	// AI Inference
+	OllamaBaseURL      string `mapstructure:"OLLAMA_BASE_URL"`
+	OllamaModel        string `mapstructure:"OLLAMA_MODEL"`
+	OCRFallbackEnabled bool   `mapstructure:"OCR_FALLBACK_ENABLED"`
+
+	// Web Search (Brave API)
+	WebSearchEnabled    bool   `mapstructure:"WEB_SEARCH_ENABLED"`
+	WebSearchMaxResults int    `mapstructure:"WEB_SEARCH_MAX_RESULTS"`
+	WebSearchProvider   string `mapstructure:"WEB_SEARCH_PROVIDER"`
+	BraveAPIKey         string `mapstructure:"BRAVE_API_KEY"`
+	BraveAPIURL         string `mapstructure:"BRAVE_API_URL"`
 }
 
 // LoadConfig reads the application configuration from a specified file or environment variables
@@ -34,6 +43,17 @@ func LoadConfig(path string) (config Config, err error) {
 
 	// Automatically map environment variables with a "APP_" prefix to configuration keys (e.g., APP_DB_DRIVER becomes DB_DRIVER)
 	viper.AutomaticEnv()
+
+	// Sensible defaults
+	viper.SetDefault("OLLAMA_BASE_URL", "http://localhost:11434")
+	viper.SetDefault("OLLAMA_MODEL", "gemma3:4b-it-qat")
+	viper.SetDefault("OCR_FALLBACK_ENABLED", true)
+	viper.SetDefault("UPLOAD_DIR", "uploads")
+
+	viper.SetDefault("WEB_SEARCH_PROVIDER", "brave")
+	viper.SetDefault("WEB_SEARCH_ENABLED", true)
+	viper.SetDefault("WEB_SEARCH_MAX_RESULTS", 5)
+	viper.SetDefault("BRAVE_API_URL", "https://api.search.brave.com/res/v1/web/search")
 
 	// Attempt to read the configuration file
 	err = viper.ReadInConfig()
