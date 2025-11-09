@@ -105,10 +105,11 @@ data: [DONE]
 
 ```bash
 # start PostgreSQL
-sudo service postgresql start
+make postgres
 
 # migrate and run
 make migrateup
+make seedCourses
 go run main.go
 ```
 
