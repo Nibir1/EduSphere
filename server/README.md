@@ -1,180 +1,119 @@
-# 🚀 Go Fiber + PostgreSQL REST Boilerplate
+# EduSphere Server (Backend)
 
-A lightweight boilerplate for building RESTful APIs with **Golang** ([Fiber](https://github.com/gofiber/fiber)) and **PostgreSQL**.  
-This project provides a clean, modular backend setup with **SQLC, Paseto/JWT authentication, Docker, and migrations**.  
-
-It’s designed as a **starting point** for rapid prototyping, learning, or small projects — without heavy cloud deployment overhead.
+The **EduSphere Server** is a **production-grade Golang backend** built with **Fiber**, **PostgreSQL**, and **Ollama AI integration**.  
+It powers all core AI and data processing features — from transcript parsing to recommendation generation, scholarship retrieval, and PDF report creation.
 
 ---
 
-## 📂 Project Structure
+## 🧩 Core Features
 
-```
-.
-├── .github/workflows/test.yml    # GitHub Actions CI
-├── api/                          # API layer (handlers, middleware, tests)
-│   ├── account.go / account_test.go
-│   ├── middleware.go / middleware_test.go
-│   ├── server.go
-│   ├── transfer.go / transfer_test.go
-│   ├── user.go / user_test.go
-│   ├── validator.go
-│
-├── db/                           # Database layer
-│   ├── migration/                # Migration files
-│   ├── mock/                     # Mocks for testing
-│   ├── query/                    # Custom SQL queries
-│   ├── sqlc/                     # Auto-generated code (sqlc)
-│   └── Simple_Bank.sql           # Schema
-│
-├── token/                        # Authentication (Paseto & JWT)
-│   ├── maker.go
-│   ├── jwt_maker.go / jwt_maker_test.go
-│   ├── paseto_maker.go / paseto_maker_test.go
-│   ├── payload.go
-│
-├── util/                         # Utilities
-│   ├── config.go
-│   ├── currency.go
-│   ├── password.go / password_test.go
-│   ├── random.go
-│   └── role.go
-│
-├── app.env                       # Environment variables
-├── Makefile                      # Dev workflow automation
-├── sqlc.yaml                     # SQLC config
-├── main.go                       # Application entrypoint
-├── go.mod / go.sum               # Dependencies
-└── README.md
-```
+- 🧠 **AI Summarization** — Generates academic summaries from transcript text.  
+- 🎯 **AI Recommendations** — Suggests courses and research directions based on inferred strengths.  
+- 🌍 **AI Scholarships** — Integrates Brave Search + LLM reasoning to discover and rank scholarships.  
+- 📄 **PDF Generation** — Exports unified summaries and clickable reports.  
+- 💬 **Streaming Chat** — Real-time streaming chat interface using Ollama.  
+- 🔐 **JWT Authentication** — Secure login using Paseto tokens.
 
 ---
 
-## 📦 Dependencies
+## ⚙️ Setup
 
-- **[Fiber v2](https://github.com/gofiber/fiber)** – Web framework (fast & minimal).  
-- **[SQLC](https://github.com/kyleconroy/sqlc)** – Generate type-safe Go from SQL.  
-- **[Paseto](https://github.com/o1egl/paseto)** & **[JWT-Go](https://github.com/dgrijalva/jwt-go)** – Secure authentication.  
-- **[Viper](https://github.com/spf13/viper)** – Config management.  
-- **[Go-Playground Validator](https://github.com/go-playground/validator)** – Request validation.  
-- **[Lib/pq](https://github.com/lib/pq)** – PostgreSQL driver.  
-- **[Golang Mock](https://github.com/golang/mock)** – Mocks for tests.  
-- **[Testify](https://github.com/stretchr/testify)** – Assertions in tests.  
-- **[x/crypto](https://pkg.go.dev/golang.org/x/crypto)** – Secure password hashing.  
+### Prerequisites
+- Go 1.22+  
+- PostgreSQL  
+- Ollama installed locally with model `gemma3:4b-it-qat`  
 
----
-
-## ⚡ Getting Started
-
-### 1. Clone the repo
+### Environment Variables (`.env`)
 ```bash
-git clone https://github.com/nibir1/go-fiber-postgres-REST-boilerplate.git
-cd go-fiber-postgres-REST-boilerplate
-```
-
-### 2. Setup environment variables
-Edit **`app.env`**:
-
-```env
-DB_DRIVER=postgres
-DB_SOURCE=postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable
-SERVER_ADDRESS=0.0.0.0:8080
+DB_SOURCE=postgresql://username:password@localhost:5432/edusphere?sslmode=disable
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=gemma3:4b-it-qat
 TOKEN_SYMMETRIC_KEY=12345678901234567890123456789012
-ACCESS_TOKEN_DURATION=15m
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
-### 3. Run PostgreSQL with Docker
-```bash
-make postgres
-make createdb
-```
-
-### 4. Run migrations
+### Database Migrations
 ```bash
 make migrateup
 ```
 
-### 5. Generate SQLC code
+### Run the Server
 ```bash
-make sqlc
+go run main.go
 ```
 
-### 6. Start the server
-```bash
-make server
+Server runs at **http://localhost:8080**
+
+---
+
+## 🧠 Architecture
+
+```plaintext
+server/
+├── api/            # Fiber HTTP handlers (REST + AI endpoints)
+├── db/sqlc/        # PostgreSQL queries (auto-generated via sqlc)
+├── util/           # Configs, environment management
+├── token/          # Paseto token handling
+└── main.go         # Entry point
 ```
 
 ---
 
-## 🧪 Running Tests
+## 🔁 AI Workflow
 
-Run all unit tests with coverage:
-```bash
-make test
-```
+1. **Transcript Extraction** → User uploads → Text is extracted & stored.  
+2. **Summary Generation** → Model summarizes strengths & skills.  
+3. **Recommendation AI** → Suggests course paths.  
+4. **Scholarship Fetcher** → Uses Brave API → AI filters relevant results.  
+5. **PDF Writer** → Creates polished, professional report.  
 
-Mocks are auto-generated with:
-```bash
-make mock
+---
+
+## 🔌 Streaming Chat Endpoint
+
+**Route:** `/api/chat/stream`  
+Supports real-time token streaming directly from Ollama to the frontend via SSE.  
+
+Example response stream:
+```json
+data: Hello there!
+data: How can I help you today?
+data: [DONE]
 ```
 
 ---
 
-## 🔑 Authentication
+## 🧾 PDF Reports
 
-- Auth is handled with **Paseto tokens** (safer alternative to JWT).  
-- Middleware checks `Authorization: Bearer <token>` headers.  
-- On login, users receive a valid access token.  
-
----
-
-## 📡 Example API Usage ( Can Be Tested Using Postman )
-
-### Create User
-```bash
-curl -X POST http://localhost:8080/users   -H "Content-Type: application/json"   -d '{"username":"nahasat","password":"secret123","full_name":"Nahasat Nibir","email":"nahasat@example.com"}'
-```
-
-### Login
-```bash
-curl -X POST http://localhost:8080/users/login   -H "Content-Type: application/json"   -d '{"username":"nahasat","password":"secret123"}'
-```
-
-### Create Account (Authorized)
-```bash
-curl -X POST http://localhost:8080/accounts   -H "Authorization: Bearer <ACCESS_TOKEN>"   -H "Content-Type: application/json"   -d '{"owner": "nahasat","currency": "USD"}'
-```
-
-### Transfer Between Accounts
-```bash
-curl -X POST http://localhost:8080/transfers   -H "Authorization: Bearer <ACCESS_TOKEN>"   -H "Content-Type: application/json"   -d '{"from_account_id":1,"to_account_id":2,"amount":100,"currency":"USD"}'
-```
-
-### List Accounts
-```bash
-curl -X POST http://localhost:8080/accounts?page_id=1&page_size=5   -H "Content-Type: application/json"
-```
+- Generated using `gofpdf`  
+- Includes transcript summary, recommendations, and scholarships  
+- Contains clickable external links  
+- Stored in `/summaries` directory  
 
 ---
 
-## 🛠 Development Workflow
+## 🧰 Development Notes
 
-| Command | Description |
-|---------|-------------|
-| `make postgres` | Run PostgreSQL in Docker |
-| `make createdb` | Create database |
-| `make dropdb` | Drop database |
-| `make psql` | Open psql shell |
-| `make migratenew` | Create new migration file |
-| `make migrateup` | Apply migrations |
-| `make migratedown` | Rollback migrations |
-| `make sqlc` | Generate Go code from SQL |
-| `make mock` | Generate mocks |
-| `make test` | Run tests |
-| `make server` | Run the app |
+- Uses **Fiber v2** for performance and simplicity  
+- **sqlc** generates type-safe DB code  
+- Supports hot-reload via [air](https://github.com/cosmtrek/air)  
+- Follows clean modular structure
 
 ---
 
-## 📜 License
+## ✅ Example Run
 
-MIT License © 2025 [Nahasat Nibir](https://github.com/nibir1)  
+```bash
+# start PostgreSQL
+sudo service postgresql start
+
+# migrate and run
+make migrateup
+go run main.go
+```
+
+Logs:
+```
+[INIT] Ollama model ready ✅
+Server running on http://localhost:8080
+```

@@ -1,16 +1,85 @@
-# React + Vite
+# EduSphere Client (Frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The **EduSphere Client** is a **React + Vite** frontend designed for seamless AI interaction — combining **modern UI, AI streaming chat, and academic visualization**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🧩 Key Features
 
-## React Compiler
+- 💬 **ChatGPT-style streaming chat** with Ollama backend.  
+- 🎓 **Transcript upload** and **AI-based recommendations**.  
+- 🧠 **Scholarship discovery** through Brave Search + AI.  
+- 📄 **Downloadable PDF summaries** with professional formatting.  
+- 🧭 **Dashboard** displaying academic statistics and results.  
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## ⚙️ Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+- Node.js 20+  
+- Backend server running at http://localhost:8080  
+
+### Install & Run
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Frontend runs at **http://localhost:5173**
+
+---
+
+## 📁 Directory Structure
+
+```plaintext
+client/
+├── src/
+│   ├── api/axiosClient.js      # Axios config with token & timeout handling
+│   ├── components/
+│   │   ├── RecommendationsSection.jsx
+│   │   ├── ChatSection.jsx
+│   │   └── Header.jsx
+│   └── main.jsx
+└── index.html
+```
+
+---
+
+## 🧠 Chat Streaming
+
+- Uses `fetch()` + `ReadableStream` to render responses live.  
+- Supports markdown rendering with syntax highlighting.  
+- Renders messages as chat bubbles with dynamic scrolling.  
+
+---
+
+## 🔐 Authentication
+
+- Managed with Paseto tokens from backend.  
+- Stored locally (cleared on logout or 401 response).  
+
+---
+
+## 🧾 PDF Download
+
+- Integrated download handler fetches binary blobs securely.  
+- Each summary includes course matches + scholarships.  
+
+---
+
+## 🎨 UI Design
+
+- Built with TailwindCSS.  
+- Lucide-react icons for consistency.  
+- Responsive design for both desktop and mobile.  
+
+---
+
+## 💡 Future Enhancements
+
+- Chat memory (context persistence).  
+- AI persona switching (Academic Advisor, Research Mentor, etc.).  
+- Dark mode and UX animations.
