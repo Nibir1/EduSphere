@@ -1,107 +1,131 @@
-# EduSphere: AI-Powered Academic Assistant
+# 🧠 EduSphere — AI-Powered Academic Assistant
 
-**EduSphere** is a full-stack **Generative AI academic assistant** designed to analyze student transcripts, generate personalized course and scholarship recommendations, and create downloadable academic reports — all locally and securely.  
+> **Ambitious Full-Stack Generative AI System** built with **Golang Fiber**, **PostgreSQL**, and **React (Vite)** — integrating local LLM inference, dynamic reasoning, and production-grade software design.
 
-Built with a **production-grade Golang Fiber backend**, **React (Vite) frontend**, and **Ollama AI inference engine**, EduSphere demonstrates how to integrate **local LLM-powered reasoning** into modern full-stack systems.
+EduSphere isn’t just another AI demo — it’s a **complete Generative AI platform** that transforms student transcripts into **personalized insights, course recommendations, and scholarship matches** — all powered by **on-device LLM inference** through Ollama.
 
----
-
-## 🚀 Key Features
-
-### 🎓 AI-Powered Academic Intelligence
-- Upload transcripts (PDF or text) and automatically extract clean, structured text.  
-- Generate **personalized course recommendations** using embedded reasoning and prompt engineering.  
-- Summarize academic transcripts into concise, meaningful profiles.  
-- Perform **AI-driven scholarship searches** by integrating Brave Search with model inference.  
-
-### 💬 ChatGPT-Style AI Chat
-- Fully local chat interface for **real-time conversation with the AI model**.  
-- Streaming responses (token-by-token rendering).  
-- Memoryless session for privacy — all chats are temporary.  
-
-### 🧾 PDF Report Generation
-- Auto-generates professional PDF summaries that include transcript analysis, recommendations, and scholarships.  
-- Clickable links in the PDF open directly in the browser.  
-- Files are stored locally under `/summaries` and can later be moved to cloud storage (e.g., AWS S3).  
-
-### 🧠 Local LLM Inference
-- Uses **Ollama** running locally with `gemma3:4b-it-qat`.  
-- Works fully offline for privacy-preserving inference.  
-- Easily replaceable with OpenAI API or custom hosted models.
+It represents a **real-world AI Systems Engineering project**, blending backend scalability, AI reasoning, and modern UI design into a cohesive and professional-grade product.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🚀 Why EduSphere Is an Ambitious Project
+
+- 🧩 **End-to-End System Design** — Secure multi-user authentication, inference orchestration, and persistent data handling.  
+- 🧠 **AI Reasoning Layer** — Summarization, academic profiling, and context-based course & scholarship discovery.  
+- ⚙️ **Production-Grade Backend** — Golang Fiber + PostgreSQL + structured routes + concurrency-safe architecture.  
+- 💬 **Streaming Chat Interface** — Real-time chat UX built in React, mirroring ChatGPT’s conversational flow.  
+- 📄 **Dynamic PDF Reports** — Auto-generated academic summaries with integrated AI reasoning.  
+- 🔒 **Local & Private Inference** — Runs LLMs directly on-device with **Ollama**, ensuring privacy and independence from cloud APIs.
+
+---
+
+## 🧩 System Architecture
+
+| Layer | Stack | Description |
+|-------|--------|-------------|
+| **Frontend** | React (Vite), TailwindCSS, Lucide Icons | Real-time chat UI, scholarship discovery, and summary dashboards |
+| **Backend** | Golang (Fiber), PostgreSQL | Token auth, modular routes, and production-grade data persistence |
+| **AI Engine** | Ollama + Local LLMs (Gemma / Llama / Mistral) | Summarization, reasoning, and conversational inference |
+| **Storage** | PostgreSQL + Filesystem | Structured persistence for recommendations and generated reports |
+| **DevOps** | Docker, Makefile | Local development setup, easy build and run workflow |
+
+---
+
+## 🧠 AI Engineering Highlights
+
+- Local inference using **Ollama** (no cloud dependency)  
+- Custom **prompt orchestration** for multi-step academic reasoning  
+- **RAG-ready architecture** for future integration with vector databases  
+- **Hybrid reasoning** combining transcript data and Brave search results  
+- ChatGPT-style **streaming LLM chat** with markdown rendering  
+- Professional **PDF generation pipeline** with summaries, recommendations, and scholarships
+
+---
+
+## 🧰 System Workflow
 
 ```plaintext
-EduSphere/
-├── server/            # Golang Fiber backend (AI logic, DB, Ollama integration)
-├── client/            # React (Vite) frontend for chat and UI
-└── README.md          # This overview file
+User Uploads Transcript
+        ↓
+AI Summarizes Academic Profile
+        ↓
+Course Recommendations (LLM Reasoning)
+        ↓
+Scholarship Matching (Web Search + AI Filtering)
+        ↓
+PDF Report Generation
+        ↓
+Optional Chat with AI (Real-Time Streaming)
 ```
 
-**System Flow:**
-1. User uploads transcript → Backend extracts and stores text.  
-2. AI summarizes transcript → Generates strengths and recommendations.  
-3. Brave search runs → Fetches scholarships and filters through LLM reasoning.  
-4. Combined summary → PDF generated with courses + scholarships.  
-5. Users can chat directly with the AI model in a ChatGPT-style interface.
-
 ---
 
-## 🧰 Technologies Used
-
-| Layer | Stack |
-|-------|--------|
-| **Frontend** | React (Vite), Axios, TailwindCSS, Lucide Icons |
-| **Backend** | Golang Fiber, PostgreSQL (via sqlc), Ollama API |
-| **AI/Inference** | Local inference with `gemma3:4b-it-qat` |
-| **PDF Engine** | gofpdf |
-| **Auth** | Paseto Token-based Authentication |
-
----
-
-## ⚙️ Setup Instructions
+## ⚙️ Setup & Run
 
 ### Prerequisites
-- [Go 1.22+](https://golang.org/dl/)
-- [Node.js 20+](https://nodejs.org/)
-- [PostgreSQL 15+](https://www.postgresql.org/)
-- [Ollama](https://ollama.ai) (for local model inference)
 
-### Clone the Repository
-```bash
-git clone https://github.com/Nibir1/EduSphere.git
-cd EduSphere
-```
+- **Golang** ≥ 1.22  
+- **Node.js** ≥ 18  
+- **PostgreSQL**  
+- **Ollama** installed locally (`https://ollama.ai`)  
 
 ### Backend Setup
+
 ```bash
 cd server
-cp .env.example .env
-go mod tidy
-make migrateup
 go run main.go
 ```
 
 ### Frontend Setup
+
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-Then visit **http://localhost:5173**
+---
+
+## 🧩 Key Features Summary
+
+| Feature | Description |
+|----------|--------------|
+| AI Transcript Summarization | LLM-based academic insight extraction |
+| Course Recommendations | Personalized academic paths based on transcript content |
+| Scholarship Discovery | Brave API + AI filtering for relevant global scholarships |
+| Dynamic PDF Reports | Summaries, recommendations, and scholarships in one file |
+| Real-Time Chat | ChatGPT-style chat with streaming responses |
+| Privacy First | Fully local inference using Ollama (no data leaves your system) |
 
 ---
 
-## 💡 Future Enhancements
-- 🌐 AWS S3 support for cloud file persistence.  
-- 🧬 Support for multiple model backends (OpenAI, Anthropic, Groq).  
-- 📊 Analytics dashboard for performance tracking.  
-- 🔐 Persistent chat memory using vector storage (e.g., pgvector).
+## 💡 Why It Matters
+
+EduSphere demonstrates **end-to-end Generative AI Systems Engineering** —  
+combining **AI reasoning, backend scalability, and human-centered interaction** into a seamless platform.
+
+It’s designed to showcase the kind of **architecture and applied AI thinking** that modern companies expect from **AI Engineers and Full-Stack Developers** building production-grade GenAI tools.
 
 ---
 
-## 🧭 Why This Project Matters
-EduSphere showcases a **modern AI engineering stack** that combines **generative intelligence, production backend design, and privacy-first local inference**. It’s ideal as a **portfolio project** for demonstrating full-stack AI systems that are both technically deep and user-facing.
+## 🧠 Built With
+
+- **Golang (Fiber Framework)** — backend & API design  
+- **PostgreSQL** — structured relational data storage  
+- **React + Vite + TailwindCSS** — frontend experience  
+- **Ollama (Local LLM Inference)** — private, on-device AI reasoning  
+- **Docker + Makefile** — streamlined dev & deployment environment  
+
+---
+
+## 🏆 Project Scope
+
+EduSphere reflects:  
+- Real-world **LLM orchestration** and **AI safety practices**  
+- Production-grade **backend design principles**  
+- Deep understanding of **human-AI interaction systems**  
+- Full-stack integration of **AI, data, and UX**  
+
+---
+
+> **EduSphere** — A showcase of applied AI engineering, full-stack system design, and the power of local intelligence.
