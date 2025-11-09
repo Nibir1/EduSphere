@@ -128,7 +128,7 @@ func (server *Server) setUpRoutes() {
 	auth.Delete("/summaries/:id", server.deleteSummary)            // Delete summary + file
 
 	// --- Simple AI Chat (for debugging/testing) ---
-	auth.Post("/chat", server.chatOnce)
+	auth.Post("/chat/stream", server.chatStream)
 }
 
 // Start launches the Fiber HTTP server and preloads the Ollama model.
