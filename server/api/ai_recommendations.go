@@ -11,14 +11,20 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	db "github.com/nibir1/go-fiber-postgres-REST-boilerplate/db/sqlc"
 	"github.com/nibir1/go-fiber-postgres-REST-boilerplate/token"
 )
 
+// Recommendation is the AI-facing recommendation struct.
+// We now also include the course code (from the catalog) and
+// an optional link that we attach from the database.
 type Recommendation struct {
 	Type        string  `json:"type"`
 	Title       string  `json:"title"`
 	Description string  `json:"description"`
 	Match       float64 `json:"match"`
+	Code        string  `json:"code,omitempty"`
+	Link        string  `json:"link,omitempty"`
 }
 
 // POST /api/recommendations/generate
@@ -57,8 +63,9 @@ func (s *Server) generateRecommendations(c *fiber.Ctx) error {
 	// Build course list context
 	var courseList strings.Builder
 	for _, cCourse := range courses {
+		// We mention the code explicitly so the model can use it.
 		courseList.WriteString(fmt.Sprintf(
-			"- %s (%s): %s\n",
+			"- Name: %s | Code: %s\n  Learning outcomes: %s\n",
 			cCourse.Name,
 			cCourse.Code,
 			cCourse.LearningOutcomes.String,
@@ -69,9 +76,19 @@ func (s *Server) generateRecommendations(c *fiber.Ctx) error {
 	systemMsg := aiMessage{
 		Role: "system",
 		Content: `You are an academic advisor AI.
-Given a student's transcript and a catalog of courses, recommend the most relevant university courses.
+Given a student's transcript and a catalog of university courses, recommend the most relevant courses.
 
-You MUST respond in JSON only. No markdown, no commentary.`,
+You MUST respond in pure JSON only. No markdown, no commentary, no extra keys.
+
+Return an array of objects with this exact schema:
+[
+  {
+    "title": "Course Name",
+    "code": "TIES4911",         // EXACT course code from the catalog
+    "description": "Why it fits",
+    "match": 95.2               // number 0–100
+  }
+]`,
 	}
 
 	userPrompt := fmt.Sprintf(`
@@ -82,13 +99,10 @@ Transcript:
 %s
 """
 
-Available courses:
+Available courses (Name + Code + brief description):
 %s
 
-Return a JSON array of recommended courses like:
-[
-  {"title": "Course Name", "description": "Why it fits", "match": 95.2}
-]
+Return ONLY JSON in the exact format described earlier. Do not include scholarships.
 `, transcriptText, courseList.String())
 
 	userMsg := aiMessage{
@@ -124,10 +138,14 @@ Return a JSON array of recommended courses like:
 		}
 	}
 
-	// 🪶 DEBUG LOG: print parsed recommendation structs
+	// Attach real course links from DB using code (and fallback to title match)
+	attachCourseLinksFromCatalog(recs, courses)
+
+	// Debug: print parsed recommendation structs
 	fmt.Println("[DEBUG] Parsed Recommendations (Go structs):")
 	for i, r := range recs {
-		fmt.Printf("  %d) %s (%.2f%%) — %s\n", i+1, r.Title, r.Match, r.Description)
+		fmt.Printf("  %d) %s [%s] (%.2f%%) — %s (link=%s)\n",
+			i+1, r.Title, r.Code, r.Match, r.Description, r.Link)
 	}
 	fmt.Println("------------------------------------------------------------")
 
@@ -170,4 +188,43 @@ func extractJSONRecommendations(raw string) []Recommendation {
 	var recs []Recommendation
 	_ = json.Unmarshal([]byte(sub), &recs)
 	return recs
+}
+
+// Attach course links + fix missing codes using the DB catalog
+func attachCourseLinksFromCatalog(recs []Recommendation, courses []db.Course) {
+	// Build lookup table: CODE → link
+	linkByCode := make(map[string]string, len(courses))
+
+	for _, c := range courses {
+		code := strings.ToUpper(strings.TrimSpace(c.Code))
+		if code == "" {
+			continue
+		}
+		if c.CourseLink.Valid && c.CourseLink.String != "" {
+			linkByCode[code] = c.CourseLink.String
+		}
+	}
+
+	// Attach link (and code if missing)
+	for i := range recs {
+		code := strings.ToUpper(strings.TrimSpace(recs[i].Code))
+
+		// 1) Direct code match (best case)
+		if code != "" {
+			if link, ok := linkByCode[code]; ok {
+				recs[i].Link = link
+				continue
+			}
+		}
+
+		// 2) Fallback: detect code inside the title text
+		tUpper := strings.ToUpper(recs[i].Title)
+		for c, link := range linkByCode {
+			if strings.Contains(tUpper, c) {
+				recs[i].Code = c
+				recs[i].Link = link
+				break
+			}
+		}
+	}
 }

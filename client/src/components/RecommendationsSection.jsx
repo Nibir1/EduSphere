@@ -147,7 +147,8 @@ export default function RecommendationsSection({ uploadedDocuments }) {
 
   // 🔹 Delete summary
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this summary?")) return;
+    if (!window.confirm("Are you sure you want to delete this summary?"))
+      return;
     try {
       await api.delete(`/summaries/${id}`);
       alert("Summary deleted successfully.");
@@ -260,7 +261,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
               disabled={
                 saving ||
                 fetchingScholarships || // 🔹 disable while fetching scholarships
-                !aiSummary.trim()       // 🔹 disable if summary is empty
+                !aiSummary.trim() // 🔹 disable if summary is empty
               }
               className="rounded-lg bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
             >
@@ -271,7 +272,6 @@ export default function RecommendationsSection({ uploadedDocuments }) {
                   : "Save Full Report (PDF)"}
             </button>
           )}
-
         </div>
       </div>
 
@@ -350,14 +350,28 @@ const CourseList = ({ courses }) => (
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h3 className="font-semibold text-gray-900">{course.title}</h3>
-              <p className="mt-1 text-sm text-gray-500">{course.description}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {course.description}
+              </p>
             </div>
             <div className="flex flex-col items-end gap-2">
               <div className="rounded-full bg-blue-100 px-3 py-1">
                 <span className="text-sm font-semibold text-blue-600">
-                  {Math.round(course.match)}%
+                  {Math.round(course.match || 0)}%
                 </span>
               </div>
+
+              {/* 🔗 Learn More link under the match badge */}
+              {course.link && (
+                <a
+                  href={course.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                >
+                  Learn More →
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -399,7 +413,7 @@ const ScholarshipList = ({ scholarships, loading }) => {
             <div className="flex flex-col items-end gap-2">
               <div className="rounded-full bg-green-100 px-3 py-1">
                 <span className="text-sm font-semibold text-green-600">
-                  {Math.round(sch.match)}%
+                  {Math.round(sch.match || 0)}%
                 </span>
               </div>
             </div>

@@ -26,6 +26,7 @@ export default function ModernTabs() {
     const picks = (result.recommendation.courses || []).map((c) => ({
       type: "course",
       title: `Course ID ${c.course_id}`,
+      course_id: c.course_id,
       description: c.rationale,
       match: c.match,
     }));
