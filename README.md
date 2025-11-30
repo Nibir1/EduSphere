@@ -57,6 +57,42 @@ PDF Report Generation
         ↓
 Optional Chat with AI (Real-Time Streaming)
 ```
+---
+### ✨ List of Functionalities this project can do
+
+- Analyze uploaded student transcripts and extract structured insights.  
+- Generate AI-powered academic summaries highlighting key strengths and subjects.  
+- Recommend personalized academic courses based on transcript content, inferred interests, and existing courses from the database.  
+- Perform real-time web searches (via Brave Search API) for scholarships relevant to a student’s profile.  
+- Use AI filtering and ranking to match the most suitable scholarships based on relevance and fit.  
+- Integrate scholarship details (title, description, match score, and URL) directly into the user dashboard.  
+- Dynamically include discovered scholarships into summary reports or PDF exports.  
+- Handle duplicate filtering and sanitization to ensure unique and clean scholarship results.  
+- Generate academic summaries using local LLM inference (via Ollama) — no external API needed.  
+- Run natural language reasoning pipelines locally for complete data privacy.  
+- Support prompt-based orchestration for summarization, recommendation, and contextual reasoning.  
+- Provide a real-time chat interface for natural, conversational interaction with EduSphere AI.  
+- Generate dynamic academic reports (PDF) including summary, recommendations, and scholarships.  
+- Include clickable scholarship links within the PDF for user convenience.  
+- Use structured report layouts with user information, creation date, and clean professional typography.  
+- Save generated PDFs locally on the backend, linked securely to individual user accounts.  
+- Allow users to download saved reports directly from the web interface.  
+- Support deletion of old reports with full backend file cleanup.  
+- Automatically prevent duplicate or incomplete report generation.  
+- Use **Golang Fiber** for a fast, production-grade backend API.  
+- Handle authentication and authorization via secure **JWT tokens**.  
+- Maintain per-user data isolation — transcripts, summaries, and PDFs are always user-specific.  
+- Store structured data using **PostgreSQL**, with relationships between users, recommendations, and summaries.  
+- Manage concurrent API calls (e.g., AI inference and PDF generation) safely and efficiently.  
+- Support long-running AI inference operations with extended HTTP timeouts.  
+- Log detailed backend operations for full transparency and debugging.  
+- Built with **React (Vite)** — fast, modular, and optimized for developer experience.  
+- Fully responsive UI for both desktop and mobile devices.  
+- Feature a dynamic dashboard displaying document statistics, course counts, and scholarship matches.  
+- Provide progress indicators for long-running AI tasks (loading, generating, saving, etc.).  
+- Handle smooth state management for simultaneous actions (e.g., generating summaries while fetching scholarships).  
+- Implement secure token-based authentication with automatic session expiration handling.  
+- Present a clean, professional, and accessible UI using **TailwindCSS** and **Lucide icons**.  
 
 ---
 
