@@ -1,3 +1,5 @@
+// client/src/components/ModernTabs.jsx
+
 import React, { useEffect, useState } from "react"
 import { Upload, Sparkles, MessageSquare } from "lucide-react"
 import UploadSection from "./UploadSection"

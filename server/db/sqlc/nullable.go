@@ -1,4 +1,4 @@
-// in db/sqlc/nullable.go (new file)
+// db/sqlc/nullable.go
 package db
 
 import "database/sql"

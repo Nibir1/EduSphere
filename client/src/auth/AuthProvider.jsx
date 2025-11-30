@@ -1,3 +1,5 @@
+// client/src/auth/AuthProvider.jsx
+
 import { createContext, useContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosClient";
@@ -50,44 +52,44 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (username, full_name, email, password) => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const res = await api.post("/users", {
-      username,
-      full_name,
-      email,
-      password,
-    });
+      const res = await api.post("/users", {
+        username,
+        full_name,
+        email,
+        password,
+      });
 
-    const { access_token, user } = res.data;
+      const { access_token, user } = res.data;
 
-    if (access_token) {
-      setAccessToken(access_token);
-      localStorage.setItem("user", JSON.stringify(user));
-      setUser(user);
-      navigate("/");
-    } else {
-      await Swal.fire({
-      icon: "success",
-      title: "Registration Successful!",
-      text: "Please log in to continue.",
-      confirmButtonColor: "#3085d6",
-    });
-      navigate("/login");
+      if (access_token) {
+        setAccessToken(access_token);
+        localStorage.setItem("user", JSON.stringify(user));
+        setUser(user);
+        navigate("/");
+      } else {
+        await Swal.fire({
+          icon: "success",
+          title: "Registration Successful!",
+          text: "Please log in to continue.",
+          confirmButtonColor: "#3085d6",
+        });
+        navigate("/login");
+      }
+    } catch (err) {
+      console.error("Registration failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Registration Failed",
+        text: err.response?.data?.error || "Something went wrong!",
+        confirmButtonColor: "#d33",
+      });
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Registration failed:", err);
-    Swal.fire({
-      icon: "error",
-      title: "Registration Failed",
-      text: err.response?.data?.error || "Something went wrong!",
-      confirmButtonColor: "#d33",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
 
   const logout = () => {

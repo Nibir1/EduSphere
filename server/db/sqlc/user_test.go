@@ -1,3 +1,5 @@
+// db/sqlc/user_test.go
+
 package db
 
 import (

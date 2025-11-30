@@ -1,3 +1,5 @@
+// server/api/chat_ai.go
+
 package api
 
 import (

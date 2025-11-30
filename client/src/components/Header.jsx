@@ -1,3 +1,4 @@
+// client/src/components/Header.jsx
 
 import { useEffect, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
@@ -6,13 +7,13 @@ import { useAuth } from "../auth/AuthProvider";
 export default function Header() {
 
   const [open, setOpen] = useState(false);
-  const [loggedUser,setLoggedUser] = useState();
+  const [loggedUser, setLoggedUser] = useState();
   const { logout } = useAuth();
   const panelRef = useRef(null);
 
   const handleLogout = async () => {
-    await logout();   
-    setOpen(false);    
+    await logout();
+    setOpen(false);
   };
 
   useEffect(() => {
@@ -32,11 +33,11 @@ export default function Header() {
     };
   }, [open]);
 
-  useEffect(() =>{
+  useEffect(() => {
     const savedUser = localStorage.getItem("user");
-    console.log("savedUser.email",savedUser.email)
+    console.log("savedUser.email", savedUser.email)
     setLoggedUser(JSON.parse(savedUser));
-  },[])
+  }, [])
 
   return (
     <header className="border-b border-gray-300 bg-white">
@@ -76,7 +77,7 @@ export default function Header() {
             <h3 className="text-lg font-semibold text-gray-900">
               {loggedUser?.full_name || "Guest User"}
             </h3>
-            <p className="text-sm text-gray-500">{loggedUser?.username }</p>
+            <p className="text-sm text-gray-500">{loggedUser?.username}</p>
             <p className="text-sm text-gray-500">{loggedUser?.email || "guest@example.com"}</p>
           </div>
 

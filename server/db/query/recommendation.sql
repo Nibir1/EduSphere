@@ -1,3 +1,4 @@
+-- db/query/recommendation.sql
 -- name: CreateRecommendation :one
 INSERT INTO recommendations (
   user_username, transcript_id, summary, payload

@@ -1,3 +1,4 @@
+-- db/query/summary.sql
 -- name: CreateSummary :one
 INSERT INTO summaries (
   user_username, recommendation_id, summary_text, pdf_path

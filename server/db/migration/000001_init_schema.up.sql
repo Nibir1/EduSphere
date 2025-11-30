@@ -1,3 +1,6 @@
+-- db/migration/000001_init_schema.up.sql
+-- This migration initializes the database schema by creating the "users" table.
+
 CREATE TABLE "users" (
   "username" varchar PRIMARY KEY,
   "hashed_password" varchar NOT NULL,

@@ -1,3 +1,5 @@
+// db/sqlc/store.go
+
 package db
 
 import (

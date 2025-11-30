@@ -1,3 +1,5 @@
+// server/util/currency.go
+
 package util
 
 // constants for all supported currencies

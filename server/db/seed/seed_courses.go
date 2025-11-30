@@ -1,3 +1,4 @@
+// db/seed/seed_courses.go
 package main
 
 import (

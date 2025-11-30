@@ -1,4 +1,5 @@
-// src/App.jsx
+// client/src/App.jsx
+
 import "./index.css";
 import Header from "./components/Header";
 import ModernTabs from "./components/ModernTabs";

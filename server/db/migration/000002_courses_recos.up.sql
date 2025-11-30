@@ -1,3 +1,5 @@
+-- db/migration/000002_courses_recos.up.sql
+
 -- Courses master table
 CREATE TABLE courses (
   id BIGSERIAL PRIMARY KEY,

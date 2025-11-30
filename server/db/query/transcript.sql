@@ -1,3 +1,4 @@
+-- db/query/transcript.sql
 -- name: CreateTranscript :one
 INSERT INTO transcripts (
   user_username, file_path, text_extracted, meta

@@ -1,3 +1,5 @@
+// client/src/components/ChatSection.jsx
+
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";

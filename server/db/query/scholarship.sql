@@ -1,3 +1,4 @@
+-- db/query/scholarship.sql
 -- name: CreateScholarship :one
 INSERT INTO scholarships (
   user_username, title, description, match_score, link

@@ -1,3 +1,5 @@
+// client/src/components/UploadSection.jsx
+
 import React, { useState } from "react"
 import { Upload, FileText, CheckCircle } from "lucide-react"
 import api from "../api/axiosClient"

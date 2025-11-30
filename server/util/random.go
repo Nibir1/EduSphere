@@ -1,3 +1,5 @@
+// server/util/random.go
+
 package util
 
 import (

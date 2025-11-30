@@ -1,3 +1,5 @@
+// client/src/pages/LoginPage.jsx
+
 import LoginLeft from "../components/login/LoginLeft";
 import LoginRight from "../components/login/LoginRight";
 

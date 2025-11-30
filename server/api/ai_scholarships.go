@@ -1,3 +1,5 @@
+// server/api/ai_scholarships.go
+
 package api
 
 import (

@@ -1,3 +1,5 @@
+// server/util/config.go
+
 package util
 
 import (

@@ -1,3 +1,4 @@
+-- db/migration/000003_add_scholarships.up.sql
 -- Scholarships (per-user recommendations from web search + AI)
 CREATE TABLE scholarships (
   id BIGSERIAL PRIMARY KEY,

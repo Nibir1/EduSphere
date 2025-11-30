@@ -1,3 +1,5 @@
+// server/api/ai_recommendations.go
+
 package api
 
 import (

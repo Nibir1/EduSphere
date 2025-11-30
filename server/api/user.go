@@ -1,3 +1,5 @@
+// server/api/user.go
+
 package api
 
 import (

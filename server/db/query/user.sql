@@ -1,3 +1,4 @@
+-- db/query/user.sql
 -- name: CreateUser :one
 INSERT INTO users (
   username, 

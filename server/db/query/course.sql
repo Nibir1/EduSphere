@@ -1,3 +1,5 @@
+-- db/query/course.sql
+
 -- name: CreateCourse :one
 INSERT INTO courses (
   code, name, language, grading_scale, organiser,
