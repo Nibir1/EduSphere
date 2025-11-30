@@ -37,23 +37,24 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("invalid request body")))
 	}
 
-	// --- Build messages for Ollama ---
-	ollamaMessages := []ollamaMessage{{
-		Role: "system",
-		Content: `You are EduSphere AI, an academic assistant.
-Respond concisely and professionally, focusing on computer science, AI, and education.`,
-	}}
+	// --- Build messages for OpenAI ---
+	var openAIMessages []map[string]string
+
+	openAIMessages = append(openAIMessages, map[string]string{
+		"role":    "system",
+		"content": `You are EduSphere AI, an academic assistant. Respond concisely and professionally, focusing on computer science, AI, and education.`,
+	})
 
 	for _, m := range req.Messages {
 		role := strings.ToLower(strings.TrimSpace(m.Role))
-		if role != "user" && role != "assistant" {
+		if role != "user" && role != "assistant" && role != "system" {
 			role = "user"
 		}
 		content := strings.TrimSpace(m.Content)
 		if content != "" {
-			ollamaMessages = append(ollamaMessages, ollamaMessage{
-				Role:    role,
-				Content: content,
+			openAIMessages = append(openAIMessages, map[string]string{
+				"role":    role,
+				"content": content,
 			})
 		}
 	}
@@ -63,31 +64,31 @@ Respond concisely and professionally, focusing on computer science, AI, and educ
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
 
-	// Wrap writer so we can flush
 	rawWriter := c.Response().BodyWriter()
 	writer := bufio.NewWriter(rawWriter)
 
-	// --- Prepare Ollama API request ---
+	// --- Prepare OpenAI streaming request ---
 	body := map[string]any{
-		"model":    s.config.OllamaModel,
-		"messages": ollamaMessages,
+		"model":    s.config.OpenAIModel,
+		"messages": openAIMessages,
 		"stream":   true,
 	}
 	bodyBytes, _ := json.Marshal(body)
 
-	reqOllama, err := http.NewRequest("POST", s.config.OllamaBaseURL+"/api/chat", bytes.NewBuffer(bodyBytes))
+	reqOpenAI, err := http.NewRequest("POST", "https://api.openai.com/v1/chat/completions", bytes.NewBuffer(bodyBytes))
 	if err != nil {
-		log.Printf("[CHAT-STREAM] Build request error: %v", err)
+		log.Printf("[CHAT-STREAM] Build OpenAI request error: %v", err)
 		fmt.Fprintf(writer, "event: error\ndata: build error\n\n")
 		writer.Flush()
 		return nil
 	}
-	reqOllama.Header.Set("Content-Type", "application/json")
+	reqOpenAI.Header.Set("Content-Type", "application/json")
+	reqOpenAI.Header.Set("Authorization", "Bearer "+s.config.OpenAIAPIKey)
 
 	client := &http.Client{}
-	resp, err := client.Do(reqOllama)
+	resp, err := client.Do(reqOpenAI)
 	if err != nil {
-		log.Printf("[CHAT-STREAM] Ollama connection error: %v", err)
+		log.Printf("[CHAT-STREAM] OpenAI connection error: %v", err)
 		fmt.Fprintf(writer, "event: error\ndata: connection failed\n\n")
 		writer.Flush()
 		return nil
@@ -110,17 +111,42 @@ Respond concisely and professionally, focusing on computer science, AI, and educ
 			continue
 		}
 
-		if strings.HasPrefix(text, "{") {
-			var data map[string]any
-			if json.Unmarshal([]byte(text), &data) == nil {
-				if msg, ok := data["message"].(map[string]any); ok {
-					if token, ok := msg["content"].(string); ok && token != "" {
-						fmt.Fprintf(writer, "data: %s\n\n", strings.ReplaceAll(token, "\n", "\\n"))
-						writer.Flush() // ✅ works now
-					}
-				}
-			}
+		if !strings.HasPrefix(text, "data: ") {
+			continue
 		}
+
+		data := strings.TrimSpace(strings.TrimPrefix(text, "data: "))
+		if data == "" {
+			continue
+		}
+
+		if data == "[DONE]" {
+			break
+		}
+
+		// Parse OpenAI streaming chunk
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+
+		token := chunk.Choices[0].Delta.Content
+		if token == "" {
+			continue
+		}
+
+		escaped := strings.ReplaceAll(token, "\n", "\\n")
+		fmt.Fprintf(writer, "data: %s\n\n", escaped)
+		writer.Flush()
 	}
 
 	fmt.Fprint(writer, "data: [DONE]\n\n")

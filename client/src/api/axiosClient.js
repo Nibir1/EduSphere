@@ -13,7 +13,7 @@ const api = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 480000, // 8 minutes – matches Ollama backend timeout
+  timeout: 480000, // 8 minutes – matches backend timeout for long OpenAI calls
 });
 
 // 🔹 Inject Bearer token into every request
@@ -23,7 +23,7 @@ api.interceptors.request.use(
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // 🔹 Unified response & error handling
@@ -42,13 +42,13 @@ api.interceptors.response.use(
       }
     }
 
-    // ⏳ Friendly timeout message for long Ollama calls
+    // ⏳ Friendly timeout message for long AI calls
     if (error.code === "ECONNABORTED" || error.message?.includes("timeout")) {
       alert("⏳ The request took too long and was aborted. Please try again.");
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 // 🔹 Safe PDF download utility

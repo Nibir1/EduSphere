@@ -19,9 +19,9 @@ type Config struct {
 	AllowedOrigins      string        `mapstructure:"ALLOWED_ORIGINS"`
 	UploadDir           string        `mapstructure:"UPLOAD_DIR"`
 
-	// AI Inference
-	OllamaBaseURL      string `mapstructure:"OLLAMA_BASE_URL"`
-	OllamaModel        string `mapstructure:"OLLAMA_MODEL"`
+	// AI Inference (OpenAI)
+	OpenAIAPIKey       string `mapstructure:"OPENAI_API_KEY"`
+	OpenAIModel        string `mapstructure:"OPENAI_MODEL"`
 	OCRFallbackEnabled bool   `mapstructure:"OCR_FALLBACK_ENABLED"`
 
 	// Web Search (Brave API)
@@ -47,8 +47,7 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.AutomaticEnv()
 
 	// Sensible defaults
-	viper.SetDefault("OLLAMA_BASE_URL", "http://localhost:11434")
-	viper.SetDefault("OLLAMA_MODEL", "gemma3:4b-it-qat")
+	viper.SetDefault("OPENAI_MODEL", "gpt-4o-mini")
 	viper.SetDefault("OCR_FALLBACK_ENABLED", true)
 	viper.SetDefault("UPLOAD_DIR", "uploads")
 

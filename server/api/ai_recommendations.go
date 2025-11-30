@@ -3,12 +3,9 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -22,10 +19,6 @@ type Recommendation struct {
 	Title       string  `json:"title"`
 	Description string  `json:"description"`
 	Match       float64 `json:"match"`
-}
-
-type ollamaResponse struct {
-	Response string `json:"response"`
 }
 
 // POST /api/recommendations/generate
@@ -61,14 +54,29 @@ func (s *Server) generateRecommendations(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("no courses in catalog")))
 	}
 
-	// Prepare prompt for Ollama
+	// Build course list context
 	var courseList strings.Builder
-	for _, c := range courses {
-		courseList.WriteString(fmt.Sprintf("- %s (%s): %s\n", c.Name, c.Code, c.LearningOutcomes.String))
+	for _, cCourse := range courses {
+		courseList.WriteString(fmt.Sprintf(
+			"- %s (%s): %s\n",
+			cCourse.Name,
+			cCourse.Code,
+			cCourse.LearningOutcomes.String,
+		))
 	}
 
-	prompt := fmt.Sprintf(`
+	// System + user messages for OpenAI
+	systemMsg := aiMessage{
+		Role: "system",
+		Content: `You are an academic advisor AI.
+Given a student's transcript and a catalog of courses, recommend the most relevant university courses.
+
+You MUST respond in JSON only. No markdown, no commentary.`,
+	}
+
+	userPrompt := fmt.Sprintf(`
 The following text is an academic transcript. Analyze the student's background and recommend the most relevant university courses.
+
 Transcript:
 """
 %s
@@ -83,39 +91,24 @@ Return a JSON array of recommended courses like:
 ]
 `, transcriptText, courseList.String())
 
-	// Call Ollama API
-	reqBody, _ := json.Marshal(map[string]any{
-		"model":  "gemma3:4b-it-qat",
-		"prompt": prompt,
-		"stream": false,
-	})
-	resp, err := http.Post("http://localhost:11434/api/generate", "application/json", bytes.NewReader(reqBody))
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("ollama request failed: %v", err)))
+	userMsg := aiMessage{
+		Role:    "user",
+		Content: userPrompt,
 	}
-	defer resp.Body.Close()
 
-	data, _ := io.ReadAll(resp.Body)
-
-	// 🪶 DEBUG LOG: print the raw Ollama JSON response (first 500 chars)
-	fmt.Println("------------------------------------------------------------")
-	fmt.Println("[DEBUG] Raw Ollama Response:")
-	fmt.Println(string(data))
-	fmt.Println("------------------------------------------------------------")
-
-	var parsed ollamaResponse
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("bad ollama response: %v", err)))
+	raw, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, []aiMessage{systemMsg, userMsg}, true)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("openai request failed: %v", err)))
 	}
 
 	// Parse model output robustly — support both array and object-shaped responses
 	var recs []Recommendation
 
 	// Try direct array first
-	if err := json.Unmarshal([]byte(parsed.Response), &recs); err != nil {
+	if err := json.Unmarshal([]byte(raw), &recs); err != nil {
 		// If it's not an array, maybe it's an object with "courses" or "recommendations"
 		var obj map[string]any
-		if err2 := json.Unmarshal([]byte(parsed.Response), &obj); err2 == nil {
+		if err2 := json.Unmarshal([]byte(raw), &obj); err2 == nil {
 			if arr, ok := obj["courses"].([]any); ok {
 				b, _ := json.Marshal(arr)
 				_ = json.Unmarshal(b, &recs)
@@ -127,7 +120,7 @@ Return a JSON array of recommended courses like:
 
 		// Fallback manual extraction if still empty
 		if len(recs) == 0 {
-			recs = extractJSONRecommendations(parsed.Response)
+			recs = extractJSONRecommendations(raw)
 		}
 	}
 
@@ -161,10 +154,9 @@ Return a JSON array of recommended courses like:
 		"courses":       recommendedCourses,
 		"scholarships":  scholarships,
 		"analyzed_at":   time.Now(),
-		"source":        "gemma3:4b-it-qat",
+		"source":        s.config.OpenAIModel,
 		"transcript_id": latest.ID,
 	})
-
 }
 
 // Basic JSON parser fallback

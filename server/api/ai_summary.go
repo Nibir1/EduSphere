@@ -33,7 +33,7 @@ func (s *Server) generateSummary(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("transcript has no extracted text")))
 	}
 
-	// Build prompt
+	// Build messages
 	prompt := fmt.Sprintf(`
 Summarize the student's transcript below into 3 concise paragraphs.
 Focus on academic strengths, software engineering skills, and AI or data science potential.
@@ -42,14 +42,14 @@ Transcript:
 """%s"""
 `, txText)
 
-	messages := []ollamaMessage{
+	messages := []aiMessage{
 		{Role: "system", Content: "You are an academic summarizer. Return only plain text summary, no markdown."},
 		{Role: "user", Content: prompt},
 	}
 
-	resp, err := callOllamaChat(c.Context(), s.config.OllamaBaseURL, s.config.OllamaModel, messages, false)
+	resp, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, messages, false)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("ollama failed: %v", err)))
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("openai failed: %v", err)))
 	}
 
 	summaryText := strings.TrimSpace(resp)

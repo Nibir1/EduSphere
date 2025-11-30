@@ -133,19 +133,23 @@ func (server *Server) setUpRoutes() {
 	auth.Post("/chat/stream", server.chatStream)
 }
 
-// Start launches the Fiber HTTP server and preloads the Ollama model.
+// Start launches the Fiber HTTP server and warms up the OpenAI model.
 func (s *Server) Start(address string) error {
-	// Preload Ollama model to reduce first-request latency
+	// Warm up OpenAI model to reduce first-request latency
 	go func() {
-		log.Println("[INIT] Preloading Ollama model in background...")
-		_, err := callOllamaChat(context.Background(), s.config.OllamaBaseURL, s.config.OllamaModel, []ollamaMessage{
-			{Role: "system", Content: "ping"},
-			{Role: "user", Content: "hello"},
+		log.Println("[INIT] Warming up OpenAI chat model...")
+		if s.config.OpenAIAPIKey == "" {
+			log.Println("[INIT] Skipping OpenAI warmup: OPENAI_API_KEY not set")
+			return
+		}
+		_, err := callOpenAIChat(context.Background(), s.config.OpenAIAPIKey, s.config.OpenAIModel, []aiMessage{
+			{Role: "system", Content: "You are EduSphere, an academic assistant."},
+			{Role: "user", Content: "Say hello briefly."},
 		}, false)
 		if err != nil {
-			log.Printf("[INIT] Ollama preload failed: %v", err)
+			log.Printf("[INIT] OpenAI warmup failed: %v", err)
 		} else {
-			log.Println("[INIT] Ollama model ready ✅")
+			log.Println("[INIT] OpenAI model reachable ✅")
 		}
 	}()
 

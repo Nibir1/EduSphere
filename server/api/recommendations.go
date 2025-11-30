@@ -85,12 +85,12 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 
 	prompt := s.buildRecoPrompt(c.Context(), tr, courses)
 
-	// call Ollama
-	msgs := []ollamaMessage{
+	// call OpenAI
+	msgs := []aiMessage{
 		{Role: "system", Content: "You are a helpful academic advisor."},
 		{Role: "user", Content: prompt},
 	}
-	raw, err := callOllamaChat(context.Background(), s.config.OllamaBaseURL, s.config.OllamaModel, msgs, true)
+	raw, err := callOpenAIChat(context.Background(), s.config.OpenAIAPIKey, s.config.OpenAIModel, msgs, true)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
 	}

@@ -97,8 +97,8 @@ Respond ONLY in valid JSON format.
 		}
 	}
 
-	// 4️⃣ Ollama messages (force valid JSON array)
-	messages := []ollamaMessage{
+	// 4️⃣ OpenAI messages (force valid JSON object/array)
+	messages := []aiMessage{
 		{
 			Role: "system",
 			Content: `
@@ -119,10 +119,10 @@ Each scholarship must contain:
 		},
 	}
 
-	// 5️⃣ Call Ollama inference
-	resp, err := callOllamaChat(c.Context(), s.config.OllamaBaseURL, s.config.OllamaModel, messages, true)
+	// 5️⃣ Call OpenAI inference
+	resp, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, messages, true)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("ollama failed: %v", err)))
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("openai failed: %v", err)))
 	}
 
 	log.Println("------------------------------------------------------------")
@@ -186,7 +186,7 @@ Each scholarship must contain:
 	}
 	log.Println("------------------------------------------------------------")
 
-	// 10️⃣ Return all scholarships to frontend
+	// 🔟 Return all scholarships to frontend
 	return c.JSON(fiber.Map{
 		"user":         payload.Username,
 		"count":        len(recs),
@@ -195,7 +195,7 @@ Each scholarship must contain:
 	})
 }
 
-// Helper: extract array if Ollama wraps JSON in text
+// Helper: extract array if AI wraps JSON in text
 func extractScholarshipJSON(raw string) []ScholarshipReco {
 	start := strings.Index(raw, "[")
 	end := strings.LastIndex(raw, "]")
