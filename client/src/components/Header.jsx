@@ -1,8 +1,8 @@
 // client/src/components/Header.jsx
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
+import { LogOut, HelpCircle, ChevronDown, User, BookOpen } from 'lucide-react';
 
 export default function Header() {
 
@@ -40,60 +40,86 @@ export default function Header() {
   }, [])
 
   return (
-    <header className="border-b border-gray-300 bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">EduSphere</h1>
-              <p className="text-sm text-gray-500">Your Personal Academic Advisor</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-              Help
-            </button>
-            <button
-              onClick={() => setOpen((s) => !s)}
-              className="h-10 w-10 rounded-full bg-gray-200 text-gray-900 hover:bg-gray-300 transition-colors flex items-center justify-center">
-              👤
-            </button>
-          </div>
-        </div>
-      </div>
+    <>
+      <header className="sticky top-0 z-40 w-full border-b border-gray-100 bg-white/80 backdrop-blur-md transition-all">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
 
-      {open && (
-        <div
-          ref={panelRef}
-          className="absolute right-0 top-14 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-5 animate-fadeIn z-50"
-        >
-          <div className="text-center mb-4">
-            {/* Avatar circle */}
-            <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-semibold mb-2">
-              {loggedUser?.full_name ? loggedUser.full_name.charAt(0).toUpperCase() : "👤"}
+            {/* Brand Section */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                <BookOpen size={18} />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight text-gray-900">
+                  Edu<span className="text-indigo-600">Sphere</span>
+                </h1>
+              </div>
             </div>
 
-            {/* User info */}
-            <h3 className="text-lg font-semibold text-gray-900">
-              {loggedUser?.full_name || "Guest User"}
-            </h3>
-            <p className="text-sm text-gray-500">{loggedUser?.username}</p>
-            <p className="text-sm text-gray-500">{loggedUser?.email || "guest@example.com"}</p>
+            {/* Right Actions */}
+            <div className="flex items-center gap-4">
+              <button className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all">
+                <HelpCircle size={16} />
+                <span className="hidden sm:inline">Help</span>
+              </button>
+
+              {/* User Toggle */}
+              <div className="relative">
+                <button
+                  onClick={() => setOpen((s) => !s)}
+                  className={`flex items-center gap-2 rounded-full border border-gray-200 p-1 pl-3 transition-all hover:shadow-md ${open ? 'ring-2 ring-indigo-100 border-indigo-200' : ''
+                    }`}
+                >
+                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                    {loggedUser?.full_name?.split(' ')[0] || 'Guest'}
+                  </span>
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                    {loggedUser?.full_name ? loggedUser.full_name.charAt(0) : <User size={14} />}
+                  </div>
+                </button>
+
+                {/* Dropdown Menu */}
+                {open && (
+                  <div
+                    ref={panelRef}
+                    className="absolute right-0 top-full mt-3 w-72 origin-top-right overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5 transition-all animate-in fade-in slide-in-from-top-2"
+                  >
+                    {/* User Header Background */}
+                    <div className="bg-gray-50/50 p-6 text-center border-b border-gray-100">
+                      <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-white p-1 shadow-sm ring-1 ring-gray-100">
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xl font-bold text-white">
+                          {loggedUser?.full_name ? loggedUser.full_name.charAt(0) : "G"}
+                        </div>
+                      </div>
+                      <h3 className="font-semibold text-gray-900">
+                        {loggedUser?.full_name || "Guest User"}
+                      </h3>
+                      <p className="text-xs text-gray-500 font-medium">{loggedUser?.email || "guest@edusphere.com"}</p>
+                      <span className="mt-2 inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700 tracking-wide">
+                        {loggedUser?.username}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="p-2">
+                      <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl p-2 text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <LogOut size={16} />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-
-          <div className="border-t border-gray-100 my-4"></div>
-
-          {/* Logout button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition"
-          >
-            <LogOut className="w-4 h-4" />
-            Log out
-          </button>
         </div>
-      )}
-
-    </header>
+      </header>
+    </>
   )
 }
+
+

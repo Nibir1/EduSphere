@@ -70,4 +70,4 @@ server:
 swagger:
 	swag init
 
-.PHONY: postgres createdb dropdb psql migratenew migrateup migrateup1 migratedown migratedown1 sqlc mock test server swagger
+.PHONY: postgres createdb dropdb psql migratenew migrateup migrateup1 migratedown migratedown1 sqlc mock test server swagger seedCourses websearch-test brave-direct-test

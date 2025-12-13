@@ -14,6 +14,7 @@ import {
   FileText,
 } from "lucide-react";
 import api, { apiDownload } from "../api/axiosClient";
+import Swal from "sweetalert2";
 
 export default function RecommendationsSection({ uploadedDocuments }) {
   const [courses, setCourses] = useState([]);
@@ -84,7 +85,13 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     try {
       const res = await api.post("/summaries/generate");
       setAiSummary(res.data.summary_text || res.data.text || "");
-      alert("Summary generated successfully.");
+      // alert("Summary generated successfully.");
+      await Swal.fire({
+                icon: "success",
+                title: "Success",
+                text: "Summary generated successfully.",
+                confirmButtonColor: "#3085d6",
+              });
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Failed to generate summary.");
@@ -117,7 +124,13 @@ export default function RecommendationsSection({ uploadedDocuments }) {
   const saveSummaryPDF = async () => {
     if (!lastRecoId) return alert("No recommendation available to save yet.");
     if (!aiSummary)
-      return alert("Generate a transcript summary before saving.");
+      return await Swal.fire({
+                icon: "danger",
+                title: "Generate a transcript summary before saving.",
+                text: "",
+                confirmButtonColor: "#3085d6",
+              });
+      // return alert("Generate a transcript summary before saving.");
     setSaving(true);
     try {
       await api.post("/summaries", {
@@ -125,7 +138,13 @@ export default function RecommendationsSection({ uploadedDocuments }) {
         summary_text: aiSummary,
         include_scholarships: scholarships.length > 0, // only include if user fetched
       });
-      alert("Summary PDF saved (includes courses and scholarships).");
+      await Swal.fire({
+                icon: "success",
+                title: "Success",
+                text: "Summary PDF saved (includes courses and scholarships).",
+                confirmButtonColor: "#3085d6",
+              });
+      // alert("Summary PDF saved (includes courses and scholarships).");
       await fetchSummaries();
     } catch (e) {
       console.error(e);

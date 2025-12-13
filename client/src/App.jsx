@@ -2,11 +2,11 @@
 
 import "./index.css";
 import Header from "./components/Header";
-import ModernTabs from "./components/ModernTabs";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import LoginPage from "./pages/LoginPage";
 import RequireAuth from "./components/RequireAuth";
+import MainPage from "./components/main/MainPage";
 
 function App() {
   return (
@@ -24,8 +24,8 @@ function App() {
                 <RequireAuth>
                   <>
                     <Header />
-                    <div className="mx-auto max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
-                      <ModernTabs />
+                    <div className="max-w-[70rem] mx-auto">
+                       <MainPage />
                     </div>
                   </>
                 </RequireAuth>
