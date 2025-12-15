@@ -2,6 +2,14 @@
 
 > **Ambitious Full-Stack Generative AI Platform** built with **Golang Fiber**, **PostgreSQL**, and **React (Vite)** — demonstrating expertise in **OpenAI API integration, secure system design, and dynamic, context-aware reasoning.**
 
+---
+
+[![EduSphere Demo](https://img.youtube.com/vi/h8KXbBzOn1c/maxresdefault.jpg)](https://youtu.be/h8KXbBzOn1c)
+
+> 📺 **[Watch the full end-to-end demo](https://youtu.be/h8KXbBzOn1c)** featuring core functionalities.
+
+---
+
 EduSphere transforms raw student transcripts into **actionable academic intelligence** (personalized course recommendations, scholarship matches, and real-time advice) powered by the speed and efficiency of **OpenAI's GPT-4o-mini**.
 
 This project represents a **Full-Stack AI Systems Engineering solution**, blending backend scalability, complex AI pipelines, and modern UI design into a single, professional-grade product.
