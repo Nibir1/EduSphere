@@ -59,10 +59,10 @@ export default function Header() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-4">
-              <button className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all">
+              {/* <button className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-all">
                 <HelpCircle size={16} />
                 <span className="hidden sm:inline">Help</span>
-              </button>
+              </button> */}
 
               {/* User Toggle */}
               <div className="relative">

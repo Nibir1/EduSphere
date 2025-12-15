@@ -1,3 +1,5 @@
+// client/src/components/RecommendationsSection.jsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -10,15 +12,16 @@ import {
   Loader2,
   Globe,
   FileText,
+  X, // Added X icon for delete button
 } from "lucide-react";
 import api, { apiDownload } from "../api/axiosClient";
 import Swal from "sweetalert2";
 
 // CHANGED: Accept 'recommendations' prop from MainPage
 export default function RecommendationsSection({ uploadedDocuments, recommendations }) {
-  // We use the prop data directly now
-  const [courses, setCourses] = useState(recommendations || []);
-  const [scholarships, setScholarships] = useState([]); // Scholarships still need to be fetched separately
+  // We use the prop data to initialize the mutable state
+  const [courses, setCourses] = useState(recommendations || []); 
+  const [scholarships, setScholarships] = useState([]); 
   const [summaries, setSummaries] = useState([]);
   const [aiSummary, setAiSummary] = useState("");
   const [lastRecoId, setLastRecoId] = useState(null);
@@ -37,7 +40,10 @@ export default function RecommendationsSection({ uploadedDocuments, recommendati
     if (rid) setLastRecoId(parseInt(rid, 10));
     
     // Set initial courses based on the prop received from MainPage
-    setCourses(recommendations || []);
+    // Note: We need to update this anytime the prop changes, not just on mount
+    if (recommendations && recommendations.length > 0) {
+        setCourses(recommendations);
+    }
   }, [recommendations]); // Re-run if new recommendations are passed in
 
   // Fetch saved summaries (Correct)
@@ -56,9 +62,6 @@ export default function RecommendationsSection({ uploadedDocuments, recommendati
   useEffect(() => {
     fetchSummaries();
   }, []);
-
-  // 🔴 DELETED: The 'fetchRecommendations' function and its 'useEffect' hook 
-  //             which called api.post("/recommendations/generate") has been removed.
 
   // 🔹 Generate AI transcript summary (Correct)
   const generateSummary = async () => {
@@ -157,10 +160,48 @@ export default function RecommendationsSection({ uploadedDocuments, recommendati
     }
   };
 
-  // 🔹 Loading and error states
-  // We removed the primary 'loading' state since Main Page handles initial analysis
-  // and the data is passed via props. If you need a full initial loading spinner, 
-  // you should handle it in MainPage.
+  // ------------------------------------------------------------------
+  // ⭐ NEW: Course Deletion Handler
+  // ------------------------------------------------------------------
+  const handleDeleteCourse = async (courseId) => {
+    if (!lastRecoId) return alert("No active recommendation to modify.");
+    if (!window.confirm("Are you sure you want to remove this course from your recommendations? This cannot be undone.")) {
+        return;
+    }
+    
+    setSaving(true); // Reuse saving state for API interaction
+    try {
+        // DELETE endpoint: DELETE /api/recommendations/{reco_id}/courses/{course_id}
+        const res = await api.delete(
+            `/recommendations/${lastRecoId}/courses/${courseId}`
+        );
+
+        // API returns the updated list of courses
+        const updatedCourses = res.data.courses || [];
+        
+        // Update local state to reflect the deletion immediately
+        setCourses(updatedCourses);
+
+        await Swal.fire({
+            icon: "info",
+            title: "Removed",
+            text: "Course removed from your recommendations. Saved reports will exclude it.",
+            confirmButtonColor: "#3085d6",
+        });
+
+    } catch (error) {
+        console.error("Error deleting course:", error);
+        Swal.fire({
+            icon: "error",
+            title: "Failed",
+            text: error.response?.data?.error || "Failed to remove course.",
+            confirmButtonColor: "#d33",
+        });
+    } finally {
+        setSaving(false);
+    }
+  };
+  // ------------------------------------------------------------------
 
   if (error) {
     return (
@@ -194,19 +235,27 @@ export default function RecommendationsSection({ uploadedDocuments, recommendati
 
       {/* Recommended Courses */}
       <SectionTitle>Recommended Courses</SectionTitle>
-      <CourseList courses={courses} />
+      {/* VITAL CHANGE: Pass the new handler down to CourseList */}
+      <CourseList 
+        courses={courses} 
+        onDelete={handleDeleteCourse} 
+      />
 
       {/* Scholarships */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center"> 
         <SectionTitle>Scholarship Opportunities</SectionTitle>
-        <button
-          onClick={fetchScholarships}
-          disabled={fetchingScholarships || generatingSummary || saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
-        >
-          <Globe className="w-4 h-4" />
-          {fetchingScholarships ? "Searching..." : "Find Scholarships"}
-        </button>
+        {/* The button moves out of this container in the final code below */}
+      </div>
+
+      <div className="flex justify-center mb-6">
+          <button
+            onClick={fetchScholarships}
+            disabled={fetchingScholarships || generatingSummary || saving}
+            className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-white font-semibold hover:bg-green-700 disabled:opacity-60"
+          >
+            <Globe className="w-4 h-4" />
+            {fetchingScholarships ? "Searching..." : "Find Scholarships"}
+          </button>
       </div>
 
       <ScholarshipList
@@ -319,20 +368,32 @@ const SectionTitle = ({ children }) => (
   <h2 className="mb-4 text-xl font-bold text-gray-900">{children}</h2>
 );
 
-const CourseList = ({ courses }) => (
+// VITAL CHANGE: Component now accepts onDelete handler
+const CourseList = ({ courses, onDelete }) => (
   <div className="grid gap-4">
     {courses.length === 0 ? (
       <p className="text-gray-500 text-sm">
         No recommendations yet. Try uploading a transcript.
       </p>
     ) : (
-      courses.map((course, idx) => (
+      courses.map((course) => (
         <div
-          key={idx}
-          className="rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
+          // It's safer to use a unique ID if available. Using course.course_id here.
+          key={course.course_id || course.code} 
+          className="relative rounded-lg border border-gray-300 bg-white p-6 hover:shadow-md transition-shadow"
         >
+            {/* ⭐ NEW: Delete Button in the top right corner */}
+            <button
+                onClick={() => onDelete(course.course_id)}
+                className="absolute top-3 right-3 p-1 rounded-full bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white transition-colors z-10"
+                aria-label={`Remove ${course.title}`}
+            >
+                <X className="w-4 h-4" />
+            </button>
+            {/* ---------------------------------------------------- */}
+
           <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1 pr-6"> {/* Added pr-6 to give space for the delete button */}
               <h3 className="font-semibold text-gray-900">{course.title}</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {course.description}

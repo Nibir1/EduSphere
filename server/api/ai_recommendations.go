@@ -231,25 +231,25 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 	// ***************************************************************
 
 	// 1. Fetch the latest scholarships for this user
-    // FIX: Use the specific method signature provided by the user.
+	// FIX: Use the specific method signature provided by the user.
 	scholarships, err := s.store.ListScholarshipsByUser(c.Context(), payload.Username)
 	if err != nil {
 		// Log but do not fail the process if scholarships cannot be found
 		fmt.Printf("[WARN] Failed to list scholarships for payload merge: %v\n", err)
 	}
-    
-    // 2. Prepare the full payload map (which goes into the DB Payload column)
+
+	// 2. Prepare the full payload map (which goes into the DB Payload column)
 	fullResultWrapper := fiber.Map{
 		"courses": finalRecs, // Already populated above
 	}
-    
-    // 3. Add scholarships to the wrapper if found
-    if len(scholarships) > 0 {
-        // VITAL: Use the exact key name ("scholarships") that chat_ai.go is looking for.
-        fullResultWrapper["scholarships"] = scholarships
-    }
 
-    // 4. Marshal and Save to DB
+	// 3. Add scholarships to the wrapper if found
+	if len(scholarships) > 0 {
+		// VITAL: Use the exact key name ("scholarships") that chat_ai.go is looking for.
+		fullResultWrapper["scholarships"] = scholarships
+	}
+
+	// 4. Marshal and Save to DB
 	resultJSON, _ := json.Marshal(fullResultWrapper)
 
 	reco, err := s.store.CreateRecommendation(c.Context(), db.CreateRecommendationParams{
@@ -264,12 +264,12 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 
 	// Response includes the final, combined results
 	return c.JSON(fiber.Map{
-		"id":          reco.ID,
-		"created_at":  reco.CreatedAt,
-		"courses":     finalRecs,
+		"id":           reco.ID,
+		"created_at":   reco.CreatedAt,
+		"courses":      finalRecs,
 		"scholarships": scholarships, // Include for frontend display if needed
-		"user_pref":   req.Preference,
-		"analyzed_at": time.Now(),
+		"user_pref":    req.Preference,
+		"analyzed_at":  time.Now(),
 	})
 }
 
@@ -319,4 +319,96 @@ func (s *Server) getRecommendation(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(reco)
+}
+
+// -----------------------------------------------------------------------------
+// ⭐ NEW HANDLER: DELETE Course from Recommendation
+// -----------------------------------------------------------------------------
+// DELETE /recommendations/:reco_id/courses/:course_id
+func (s *Server) deleteCourseFromRecommendation(c *fiber.Ctx) error {
+	payload, ok := c.Locals(authorizationPayloadKey).(*token.Payload)
+	if !ok || payload == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(errorResponse(fmt.Errorf("unauthorized")))
+	}
+
+	// 1. Parse IDs from URL parameters
+	recoID, err := parseIDParam(c, "reco_id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("invalid recommendation ID")))
+	}
+	courseID, err := parseIDParam(c, "course_id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("invalid course ID")))
+	}
+
+	// 2. Fetch the current recommendation record
+	reco, err := s.store.GetRecommendation(c.Context(), recoID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(errorResponse(fmt.Errorf("recommendation not found")))
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
+	}
+
+	// Security check: ensure user owns this recommendation
+	if reco.UserUsername != payload.Username {
+		return c.Status(fiber.StatusForbidden).JSON(errorResponse(fmt.Errorf("forbidden")))
+	}
+
+	// 3. Unmarshal the existing Payload
+	// Use a struct that mirrors the Recommendation structure saved in the Payload column
+	var payloadMap struct {
+		Courses      []Recommendation    `json:"courses"`
+		Scholarships json.RawMessage     `json:"scholarships,omitempty"` // Preserve existing scholarships
+	}
+	if err := json.Unmarshal(reco.Payload, &payloadMap); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("failed to parse recommendation payload: %w", err)))
+	}
+
+	// 4. Filter the Courses array to remove the specified course
+	var updatedCourses []Recommendation
+	found := false
+	for _, course := range payloadMap.Courses {
+		// Filter criteria: Match the unique CourseID
+		if course.CourseID != courseID {
+			updatedCourses = append(updatedCourses, course)
+		} else {
+			found = true
+		}
+	}
+
+	if !found {
+		return c.Status(fiber.StatusNotFound).JSON(errorResponse(fmt.Errorf("course ID %d not found in recommendation %d", courseID, recoID)))
+	}
+
+	// 5. Re-package the entire payload (preserving scholarships)
+	newPayloadMap := fiber.Map{
+		"courses": updatedCourses,
+	}
+	if len(payloadMap.Scholarships) > 0 {
+		newPayloadMap["scholarships"] = payloadMap.Scholarships
+	}
+
+	newPayloadJSON, err := json.Marshal(newPayloadMap)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("failed to marshal new payload: %w", err)))
+	}
+
+	// 6. Save the updated payload back to the database
+	// NOTE: This assumes you have the following SQLC method/query defined:
+	// db.UpdateRecommendationPayloadParams{ID: recoID, UserUsername: payload.Username, Payload: newPayloadJSON}
+	_, err = s.store.UpdateRecommendationPayload(c.Context(), db.UpdateRecommendationPayloadParams{
+		ID:           recoID,
+		UserUsername: payload.Username, // Added security check to the params
+		Payload:      newPayloadJSON,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("failed to save updated recommendation: %w", err)))
+	}
+
+	// 7. Return the updated course list to the frontend for state refresh
+	return c.JSON(fiber.Map{
+		"message": "Course deleted.",
+		"courses": updatedCourses,
+	})
 }

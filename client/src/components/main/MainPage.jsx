@@ -110,7 +110,7 @@ export default function MainPage() {
                     setFileForAnalyze={setFileForAnalyze}
                 />
                 <PreferenceInput value={preference} onChange={handlePreferenceChange} />
-                <div className="flex justify-end pb-4">
+                <div className="flex justify-center pb-4">
                     <button
                         className="px-4 py-3 bg-emerald-600 text-white font-medium rounded-xl shadow-sm hover:bg-emerald-700 
                                      hover:shadow-md active:scale-95 transition-all duration-200 inline-flex items-center gap-2

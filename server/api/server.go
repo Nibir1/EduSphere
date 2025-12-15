@@ -27,11 +27,11 @@ import (
 
 // Server serves all HTTP routes for the EduSphere backend.
 type Server struct {
-	config     util.Config
-	store      db.Store
-	tokenMaker token.Maker
-	app        *fiber.App
-	validate   *validator.Validate
+	config       util.Config
+	store        db.Store
+	tokenMaker   token.Maker
+	app          *fiber.App
+	validate     *validator.Validate
 
 	uploadsDir   string
 	summariesDir string
@@ -111,11 +111,14 @@ func (server *Server) setUpRoutes() {
 	// --- Recommendations ---
 	// Create (Smart Filtered Recommendation)
 	auth.Post("/recommendations", server.createRecommendation)
-	
+
 	// List & Get (History)
 	auth.Get("/recommendations", server.listRecommendations)
 	auth.Get("/recommendations/:id", server.getRecommendation)
 	
+	// ⭐ VITAL FIX: Register the DELETE route for removing a recommended course
+	auth.Delete("/recommendations/:reco_id/courses/:course_id", server.deleteCourseFromRecommendation)
+
 	// REMOVED: auth.Post("/recommendations/generate", ...) because we merged it into createRecommendation
 
 	// --- Scholarships (AI + Web Search) ---
@@ -129,9 +132,9 @@ func (server *Server) setUpRoutes() {
 	auth.Post("/summaries", server.createSummaryPDF)
 
 	// Step 3: Manage summaries
-	auth.Get("/summaries", server.listSummaries)                   // List user's saved PDFs
+	auth.Get("/summaries", server.listSummaries)             // List user's saved PDFs
 	auth.Get("/summaries/:id/download", server.downloadSummaryPDF) // Download a specific PDF
-	auth.Delete("/summaries/:id", server.deleteSummary)            // Delete summary + file
+	auth.Delete("/summaries/:id", server.deleteSummary)         // Delete summary + file
 
 	// --- Simple AI Chat (for debugging/testing) ---
 	auth.Post("/chat/stream", server.chatStream)

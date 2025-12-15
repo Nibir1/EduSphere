@@ -13,3 +13,9 @@ ORDER BY id DESC;
 
 -- name: GetRecommendation :one
 SELECT * FROM recommendations WHERE id = $1 LIMIT 1;
+
+-- name: UpdateRecommendationPayload :one
+UPDATE recommendations
+SET payload = $1
+WHERE id = $2 AND user_username = $3
+RETURNING *;
