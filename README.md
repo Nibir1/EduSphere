@@ -144,16 +144,18 @@ sudo apt install -y \
 The fastest way to spin up the full stack (**PostgreSQL + Go backend**) is via Docker Compose using the provided **Makefile**.
 
 ```bash
-# Build and run backend and database services
+# Build and run backend and database services along with frontend
 make build
 make migrateup
 make seedCourses
 ```
 
-This command internally runs:
+make build command internally runs:
 
 ```bash
-docker-compose up --build
+docker-compose build --no-cache
+docker-compose up -d
+@echo "✅ Application running at http://localhost:3000"
 ```
 
 and starts:
@@ -172,9 +174,6 @@ If you prefer running services individually without Docker, follow the steps bel
 
 ```bash
 cd server
-
-# Ensure PostgreSQL is running locally
-# and the connection string is set in .env
 
 make postgres
 make createdb
