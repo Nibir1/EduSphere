@@ -1,3 +1,5 @@
+// server/api/ai_recommendations.go
+
 package api
 
 import (
@@ -122,7 +124,7 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 	candidates := filterAvailableCourses(allCourses, completedCodes)
 	if len(candidates) == 0 {
 		return c.Status(fiber.StatusOK).JSON(fiber.Map{
-			"courses": []Recommendation{}, 
+			"courses": []Recommendation{},
 			"message": "No new courses available.",
 		})
 	}
@@ -139,7 +141,9 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 		desc := ""
 		if c.LearningOutcomes.Valid {
 			desc = c.LearningOutcomes.String
-			if len(desc) > 150 { desc = desc[:150] + "..." }
+			if len(desc) > 150 {
+				desc = desc[:150] + "..."
+			}
 		}
 		promptList = append(promptList, PromptCourse{
 			ID:   c.ID,
@@ -156,11 +160,11 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 	2. Select the top 3-5 courses that best match the preference.
 	3. Return a JSON object with a key "recommendations" which is an array.
 	4. Each item must have: 
-	   - "course_id" (integer, copied exactly from input)
-	   - "code" (string)
-	   - "title" (string)
-	   - "rationale" (string, why it fits)
-	   - "match" (number 0-100)`
+		- "course_id" (integer, copied exactly from input)
+		- "code" (string)
+		- "title" (string)
+		- "rationale" (string, why it fits)
+		- "match" (number 0-100)`
 
 	userPrompt := fmt.Sprintf("User Preference: %s\n\nAvailable Courses:\n%s", req.Preference, string(candidateBytes))
 
@@ -184,7 +188,7 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 			Match     float64 `json:"match"`
 		} `json:"recommendations"`
 	}
-	
+
 	if err := json.Unmarshal([]byte(rawResponse), &aiResult); err != nil {
 		var directArr []struct {
 			CourseID  int64   `json:"course_id"`
@@ -222,10 +226,30 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 
 	sort.Slice(finalRecs, func(i, j int) bool { return finalRecs[i].Match > finalRecs[j].Match })
 
-	// Save to DB
-	fullResultWrapper := fiber.Map{
-		"courses": finalRecs,
+	// ***************************************************************
+	// FIX: Merge Scholarships into the Payload before saving
+	// ***************************************************************
+
+	// 1. Fetch the latest scholarships for this user
+    // FIX: Use the specific method signature provided by the user.
+	scholarships, err := s.store.ListScholarshipsByUser(c.Context(), payload.Username)
+	if err != nil {
+		// Log but do not fail the process if scholarships cannot be found
+		fmt.Printf("[WARN] Failed to list scholarships for payload merge: %v\n", err)
 	}
+    
+    // 2. Prepare the full payload map (which goes into the DB Payload column)
+	fullResultWrapper := fiber.Map{
+		"courses": finalRecs, // Already populated above
+	}
+    
+    // 3. Add scholarships to the wrapper if found
+    if len(scholarships) > 0 {
+        // VITAL: Use the exact key name ("scholarships") that chat_ai.go is looking for.
+        fullResultWrapper["scholarships"] = scholarships
+    }
+
+    // 4. Marshal and Save to DB
 	resultJSON, _ := json.Marshal(fullResultWrapper)
 
 	reco, err := s.store.CreateRecommendation(c.Context(), db.CreateRecommendationParams{
@@ -238,10 +262,12 @@ func (s *Server) createRecommendation(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
 	}
 
+	// Response includes the final, combined results
 	return c.JSON(fiber.Map{
 		"id":          reco.ID,
 		"created_at":  reco.CreatedAt,
 		"courses":     finalRecs,
+		"scholarships": scholarships, // Include for frontend display if needed
 		"user_pref":   req.Preference,
 		"analyzed_at": time.Now(),
 	})

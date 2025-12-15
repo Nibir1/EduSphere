@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -37,14 +38,88 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("invalid request body")))
 	}
 
-	// --- Build messages for OpenAI ---
+	// --- Build System Context (VITAL PHASE 3 UPDATE) ---
+
+	// 1. Base System Prompt
+	systemContext := "You are EduSphere AI, an academic advisor who provides personalized advice based on the provided user's full academic context (transcript, recommended courses, and potential scholarships). Be concise and professional. You must use the provided context to justify your answers."
+
+	// 2. Read the Recommendation context header
+	recoIDStr := c.Get("X-Recommendation-ID")
+
+	if recoIDStr != "" {
+		recoID, err := strconv.ParseInt(recoIDStr, 10, 64)
+
+		if err == nil {
+			// Fetch the full Recommendation record
+			reco, err := s.store.GetRecommendation(c.Context(), recoID)
+
+			if err == nil {
+				var contextBuilder strings.Builder
+
+				// 3a. Inject Transcript Text
+				if reco.TranscriptID.Valid {
+					tr, trErr := s.store.GetTranscript(c.Context(), reco.TranscriptID.Int64)
+					if trErr == nil && tr.TextExtracted.Valid && strings.TrimSpace(tr.TextExtracted.String) != "" {
+						contextBuilder.WriteString(fmt.Sprintf("\n\n[USER ACADEMIC TRANSCRIPT TEXT]\n%s\n", tr.TextExtracted.String))
+					}
+				}
+                
+                // --- DEBUG STEP: Log the raw payload to find the correct key ---
+                if len(reco.Payload) > 2 {
+                    log.Printf("[AI-CHAT] DEBUG RAW PAYLOAD: %s", string(reco.Payload))
+                }
+                // ------------------------------------------------------------------
+
+				// 3b. Inject Recommendation Payload (Courses, Scholarships, Rationale)
+				if len(reco.Payload) > 2 {
+					var payloadMap map[string]json.RawMessage
+					if json.Unmarshal(reco.Payload, &payloadMap) == nil {
+						
+						// i. Inject Recommended Courses
+						if coursesJSON, ok := payloadMap["courses"]; ok && len(coursesJSON) > 2 {
+							contextBuilder.WriteString(fmt.Sprintf("\n\n[RECOMMENDED COURSES JSON]\n%s\n", string(coursesJSON)))
+						}
+						
+						// ii. Inject Found Scholarships (LOOKING FOR KEY "scholarships")
+						if scholarshipsJSON, ok := payloadMap["scholarships"]; ok && len(scholarshipsJSON) > 2 {
+							contextBuilder.WriteString(fmt.Sprintf("\n\n[MATCHED SCHOLARSHIPS JSON]\n%s\n", string(scholarshipsJSON)))
+						}
+
+						// iii. Inject remaining payload 
+						delete(payloadMap, "courses")
+						delete(payloadMap, "scholarships")
+						if remainingJSON, err := json.Marshal(payloadMap); err == nil && len(remainingJSON) > 2 {
+							contextBuilder.WriteString(fmt.Sprintf("\n\n[OTHER RECOMMENDATION DATA JSON]\n%s\n", string(remainingJSON)))
+						}
+
+					} else {
+						// Fallback: If parsing fails, inject the entire payload raw
+						contextBuilder.WriteString(fmt.Sprintf("\n\n[RAW RECOMMENDATION PAYLOAD JSON]\n%s\n", string(reco.Payload)))
+					}
+				}
+
+				// Append the combined context to the system prompt
+				if contextBuilder.Len() > 0 {
+					systemContext += "\n\n[FULL ACADEMIC CONTEXT INJECTED BELOW]\n"
+					systemContext += contextBuilder.String()
+					log.Printf("[AI-CHAT] Injecting %d bytes of total context for Recommendation ID: %d", len(contextBuilder.String()), recoID)
+				}
+			} else {
+				log.Printf("[AI-CHAT] Failed to fetch Recommendation for ID: %d. Error: %v", recoID, err)
+			}
+		}
+	}
+
+	// --- Build messages for OpenAI (incorporate systemContext) ---
 	var openAIMessages []map[string]string
 
+	// VITAL: Insert the enhanced system context as the first message
 	openAIMessages = append(openAIMessages, map[string]string{
 		"role":    "system",
-		"content": `You are EduSphere AI, an academic assistant. Respond concisely and professionally, focusing on computer science, AI, and education.`,
+		"content": systemContext,
 	})
 
+	// Append user history and current message
 	for _, m := range req.Messages {
 		role := strings.ToLower(strings.TrimSpace(m.Role))
 		if role != "user" && role != "assistant" && role != "system" {
@@ -58,6 +133,7 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 			})
 		}
 	}
+	// --- End Message Build ---
 
 	// --- Setup streaming response headers ---
 	c.Set("Content-Type", "text/event-stream")
@@ -95,6 +171,7 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 	}
 	defer resp.Body.Close()
 
+	// --- Process Stream ---
 	reader := bufio.NewReader(resp.Body)
 
 	for {
@@ -144,6 +221,7 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 			continue
 		}
 
+		// Escape newlines for SSE format
 		escaped := strings.ReplaceAll(token, "\n", "\\n")
 		fmt.Fprintf(writer, "data: %s\n\n", escaped)
 		writer.Flush()

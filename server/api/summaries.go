@@ -233,12 +233,20 @@ func writeRecoPDF(path string, reco db.Recommendation, summaryText string, schol
 	pdf.Ln(10)
 	pdf.SetFont("Helvetica", "", 11)
 
+	// VITAL FIX: Changed JSON tag from "rationale" back to "description"
+	// to match the field name saved by the ai_recommendations.go handler.
+	type RecoCourse struct {
+		Type        string  `json:"type"`
+		Title       string  `json:"title"`
+		Description string  `json:"description"` // <--- FIXED: The JSON key in the DB is "description"
+		Match       float64 `json:"match"`
+		Code        string  `json:"code"`
+		Link        string  `json:"link"`
+		CourseID    int64   `json:"course_id"`
+	}
+
 	var payload struct {
-		Courses []struct {
-			CourseID  int64  `json:"course_id"`
-			Match     int    `json:"match"`
-			Rationale string `json:"rationale"`
-		} `json:"courses"`
+		Courses []RecoCourse `json:"courses"`
 	}
 	_ = json.Unmarshal(reco.Payload, &payload)
 
@@ -247,10 +255,24 @@ func writeRecoPDF(path string, reco db.Recommendation, summaryText string, schol
 		pdf.Ln(4)
 	} else {
 		for i, c := range payload.Courses {
-			text := fmt.Sprintf("%d) Course ID: %d | Match: %d%%\nRationale: %s",
-				i+1, c.CourseID, c.Match, cleanText(c.Rationale))
-			pdf.MultiCell(0, 6, text, "", "", false)
-			pdf.Ln(3)
+			// 1. Print Title, Code, and Match Score
+			pdf.SetFont("Helvetica", "B", 12)
+			titleLine := fmt.Sprintf("%d) %s (%s) - Match: %.0f%%",
+				i+1, cleanText(c.Title), cleanText(c.Code), c.Match)
+			pdf.MultiCell(0, 6, titleLine, "", "", false)
+			pdf.SetFont("Helvetica", "", 11)
+
+			// 2. Print Rationale/Description
+			pdf.MultiCell(0, 6, fmt.Sprintf("Rationale: %s", cleanText(c.Description)), "", "", false) 
+
+			// 3. Print Link (Clickable)
+			if strings.TrimSpace(c.Link) != "" {
+				link := strings.TrimSpace(c.Link)
+				pdf.SetTextColor(0, 0, 255)
+				pdf.WriteLinkString(6, "Course Link", link) // Use "Course Link" instead of the long URL text
+				pdf.SetTextColor(0, 0, 0)
+			}
+			pdf.Ln(6) // Add extra line break after each course
 		}
 	}
 
@@ -314,8 +336,8 @@ func writeRecoPDF(path string, reco db.Recommendation, summaryText string, schol
 
 // cleanText removes HTML, escaped characters, and non-printable symbols.
 func cleanText(s string) string {
-	s = html.UnescapeString(s)                                // convert entities like &amp;
-	s = strings.ReplaceAll(s, "\u00a0", " ")                  // remove nbsp
+	s = html.UnescapeString(s)                          // convert entities like &amp;
+	s = strings.ReplaceAll(s, "\u00a0", " ")           // remove nbsp
 	s = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(s, "") // strip tags
 	return strings.TrimSpace(s)
 }
