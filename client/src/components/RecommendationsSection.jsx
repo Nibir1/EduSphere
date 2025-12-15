@@ -1,5 +1,3 @@
-// client/src/components/RecommendationsSection.jsx
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -16,27 +14,33 @@ import {
 import api, { apiDownload } from "../api/axiosClient";
 import Swal from "sweetalert2";
 
-export default function RecommendationsSection({ uploadedDocuments }) {
-  const [courses, setCourses] = useState([]);
-  const [scholarships, setScholarships] = useState([]);
+// CHANGED: Accept 'recommendations' prop from MainPage
+export default function RecommendationsSection({ uploadedDocuments, recommendations }) {
+  // We use the prop data directly now
+  const [courses, setCourses] = useState(recommendations || []);
+  const [scholarships, setScholarships] = useState([]); // Scholarships still need to be fetched separately
   const [summaries, setSummaries] = useState([]);
   const [aiSummary, setAiSummary] = useState("");
   const [lastRecoId, setLastRecoId] = useState(null);
 
-  const [loading, setLoading] = useState(false);
+  // We only need to control loading states for subsequent actions
   const [fetchingScholarships, setFetchingScholarships] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSummaries, setLoadingSummaries] = useState(false);
-  const [error, setError] = useState("");
+  // ERROR state is now only for secondary actions (scholarships, pdf save)
+  const [error, setError] = useState(""); 
 
-  // Load last recommendation ID from localStorage
+  // Load last recommendation ID from localStorage (This is correct)
   useEffect(() => {
     const rid = localStorage.getItem("last_reco_id");
     if (rid) setLastRecoId(parseInt(rid, 10));
-  }, []);
+    
+    // Set initial courses based on the prop received from MainPage
+    setCourses(recommendations || []);
+  }, [recommendations]); // Re-run if new recommendations are passed in
 
-  // Fetch saved summaries
+  // Fetch saved summaries (Correct)
   const fetchSummaries = async () => {
     setLoadingSummaries(true);
     try {
@@ -53,45 +57,22 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     fetchSummaries();
   }, []);
 
-  // 🔹 Generate AI-based course recommendations
-  const fetchRecommendations = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await api.post("/recommendations/generate");
-      setCourses(res.data.courses || []);
-      setScholarships(res.data.scholarships || []);
-      if (res.data.id) localStorage.setItem("last_reco_id", res.data.id);
-    } catch (err) {
-      console.error("Failed to fetch recommendations:", err);
-      setError(
-        err.response?.data?.error ||
-        "Failed to generate recommendations. Try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 🔴 DELETED: The 'fetchRecommendations' function and its 'useEffect' hook 
+  //             which called api.post("/recommendations/generate") has been removed.
 
-  // Automatically generate recommendations once
-  useEffect(() => {
-    fetchRecommendations();
-  }, []);
-
-  // 🔹 Generate AI transcript summary
+  // 🔹 Generate AI transcript summary (Correct)
   const generateSummary = async () => {
     if (generatingSummary || fetchingScholarships) return;
     setGeneratingSummary(true);
     try {
       const res = await api.post("/summaries/generate");
       setAiSummary(res.data.summary_text || res.data.text || "");
-      // alert("Summary generated successfully.");
       await Swal.fire({
-                icon: "success",
-                title: "Success",
-                text: "Summary generated successfully.",
-                confirmButtonColor: "#3085d6",
-              });
+        icon: "success",
+        title: "Success",
+        text: "Summary generated successfully.",
+        confirmButtonColor: "#3085d6",
+      });
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.error || "Failed to generate summary.");
@@ -100,7 +81,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Fetch scholarships
+  // 🔹 Fetch scholarships (Correct)
   const fetchScholarships = async () => {
     if (fetchingScholarships || generatingSummary) return;
     setFetchingScholarships(true);
@@ -120,31 +101,29 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Save unified summary PDF (summary + scholarships + recommendations)
+  // 🔹 Save unified summary PDF (Correct)
   const saveSummaryPDF = async () => {
     if (!lastRecoId) return alert("No recommendation available to save yet.");
     if (!aiSummary)
       return await Swal.fire({
-                icon: "danger",
-                title: "Generate a transcript summary before saving.",
-                text: "",
-                confirmButtonColor: "#3085d6",
-              });
-      // return alert("Generate a transcript summary before saving.");
+        icon: "error", // Changed from danger to error
+        title: "Missing Summary",
+        text: "Generate a transcript summary before saving.",
+        confirmButtonColor: "#3085d6",
+      });
     setSaving(true);
     try {
       await api.post("/summaries", {
         recommendation_id: lastRecoId,
         summary_text: aiSummary,
-        include_scholarships: scholarships.length > 0, // only include if user fetched
+        include_scholarships: scholarships.length > 0,
       });
       await Swal.fire({
-                icon: "success",
-                title: "Success",
-                text: "Summary PDF saved (includes courses and scholarships).",
-                confirmButtonColor: "#3085d6",
-              });
-      // alert("Summary PDF saved (includes courses and scholarships).");
+        icon: "success",
+        title: "Success",
+        text: "Summary PDF saved (includes courses and scholarships).",
+        confirmButtonColor: "#3085d6",
+      });
       await fetchSummaries();
     } catch (e) {
       console.error(e);
@@ -154,7 +133,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Download PDF
+  // 🔹 Download PDF (Correct)
   const handleDownload = async (id) => {
     try {
       await apiDownload(`/summaries/${id}/download`, `summary_${id}.pdf`);
@@ -164,7 +143,7 @@ export default function RecommendationsSection({ uploadedDocuments }) {
     }
   };
 
-  // 🔹 Delete summary
+  // 🔹 Delete summary (Correct)
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this summary?"))
       return;
@@ -179,28 +158,14 @@ export default function RecommendationsSection({ uploadedDocuments }) {
   };
 
   // 🔹 Loading and error states
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-blue-600 mr-2" />
-        <span className="text-gray-600">
-          Generating personalized recommendations...
-        </span>
-      </div>
-    );
-  }
+  // We removed the primary 'loading' state since Main Page handles initial analysis
+  // and the data is passed via props. If you need a full initial loading spinner, 
+  // you should handle it in MainPage.
 
   if (error) {
     return (
       <div className="text-center text-red-600 py-10">
         ⚠️ {error}
-        <br />
-        <button
-          onClick={fetchRecommendations}
-          className="mt-3 text-sm text-blue-600 underline"
-        >
-          Retry
-        </button>
       </div>
     );
   }
@@ -267,8 +232,8 @@ export default function RecommendationsSection({ uploadedDocuments }) {
           <button
             onClick={generateSummary}
             disabled={
-              generatingSummary || fetchingScholarships || saving || loading
-            }
+              generatingSummary || fetchingScholarships || saving || courses.length === 0
+            } // Disable if no courses were generated (meaning no transcript processed)
             className="rounded-lg bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 disabled:opacity-60"
           >
             {generatingSummary ? "Generating..." : "Generate Summary"}
@@ -279,8 +244,8 @@ export default function RecommendationsSection({ uploadedDocuments }) {
               onClick={saveSummaryPDF}
               disabled={
                 saving ||
-                fetchingScholarships || // 🔹 disable while fetching scholarships
-                !aiSummary.trim() // 🔹 disable if summary is empty
+                fetchingScholarships ||
+                !aiSummary.trim()
               }
               className="rounded-lg bg-blue-600 px-4 py-2 text-white font-semibold hover:bg-blue-700 disabled:opacity-60"
             >

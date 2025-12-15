@@ -1,9 +1,7 @@
-// server/api/ai_recommendations.go
-
 package api
 
 import (
-	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -15,9 +13,13 @@ import (
 	"github.com/nibir1/go-fiber-postgres-REST-boilerplate/token"
 )
 
-// Recommendation is the AI-facing recommendation struct.
-// We now also include the course code (from the catalog) and
-// an optional link that we attach from the database.
+// Request payload from Frontend
+type createRecommendationRequest struct {
+	TranscriptID int64  `json:"transcript_id"`
+	Preference   string `json:"preference"`
+}
+
+// Response struct
 type Recommendation struct {
 	Type        string  `json:"type"`
 	Title       string  `json:"title"`
@@ -25,206 +27,270 @@ type Recommendation struct {
 	Match       float64 `json:"match"`
 	Code        string  `json:"code,omitempty"`
 	Link        string  `json:"link,omitempty"`
+	CourseID    int64   `json:"course_id,omitempty"`
 }
 
-// POST /api/recommendations/generate
-func (s *Server) generateRecommendations(c *fiber.Ctx) error {
+// -----------------------------------------------------------------------------
+// 1. HELPER: Extract Completed Courses (AI)
+// -----------------------------------------------------------------------------
+func (s *Server) extractCompletedCourses(c *fiber.Ctx, transcriptText string) ([]string, error) {
+	messages := []aiMessage{
+		{
+			Role:    "system",
+			Content: "You are a data extraction assistant. Analyze the academic transcript and return a JSON object with a single key 'completed_codes' containing a list of strings. Each string must be a Course Code (e.g. 'CS101') the student has completed.",
+		},
+		{
+			Role:    "user",
+			Content: transcriptText,
+		},
+	}
+
+	raw, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, messages, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		CompletedCodes []string `json:"completed_codes"`
+	}
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return []string{}, nil
+	}
+
+	normalized := make([]string, 0, len(result.CompletedCodes))
+	for _, code := range result.CompletedCodes {
+		normalized = append(normalized, strings.ToUpper(strings.TrimSpace(code)))
+	}
+	return normalized, nil
+}
+
+// -----------------------------------------------------------------------------
+// 2. HELPER: Filter Logic
+// -----------------------------------------------------------------------------
+func filterAvailableCourses(allCourses []db.Course, completedCodes []string) []db.Course {
+	completedMap := make(map[string]bool)
+	for _, code := range completedCodes {
+		completedMap[code] = true
+	}
+
+	var available []db.Course
+	for _, course := range allCourses {
+		dbCode := strings.ToUpper(strings.TrimSpace(course.Code))
+		if !completedMap[dbCode] {
+			available = append(available, course)
+		}
+	}
+	return available
+}
+
+// -----------------------------------------------------------------------------
+// 3. MAIN HANDLER: Create (Smart Filter)
+// -----------------------------------------------------------------------------
+func (s *Server) createRecommendation(c *fiber.Ctx) error {
 	payload, ok := c.Locals(authorizationPayloadKey).(*token.Payload)
-	if !ok {
+	if !ok || payload == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(errorResponse(fmt.Errorf("unauthorized")))
 	}
 
-	// Get user's latest transcript
-	transcripts, err := s.store.ListTranscripts(c.Context(), payload.Username)
-	if err != nil || len(transcripts) == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(errorResponse(fmt.Errorf("no transcripts found")))
+	var req createRecommendationRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(err))
 	}
 
-	latest := transcripts[0]
-	fullTr, err := s.store.GetTranscript(c.Context(), latest.ID)
+	// Fetch Transcript
+	transcript, err := s.store.GetTranscript(c.Context(), req.TranscriptID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(errorResponse(fmt.Errorf("transcript not found")))
+	}
+	if !transcript.TextExtracted.Valid || transcript.TextExtracted.String == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("transcript has no text content")))
+	}
+
+	// AI Step A: Extract History
+	completedCodes, err := s.extractCompletedCourses(c, transcript.TextExtracted.String)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("failed to analyze transcript history: %w", err)))
+	}
+
+	// DB: Get All Courses
+	allCourses, err := s.store.ListAllCourses(c.Context())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
 	}
 
-	transcriptText := strings.TrimSpace(fullTr.TextExtracted.String)
-	if transcriptText == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(fmt.Errorf("transcript has no extracted text")))
+	// Go: Filter Available
+	candidates := filterAvailableCourses(allCourses, completedCodes)
+	if len(candidates) == 0 {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"courses": []Recommendation{}, 
+			"message": "No new courses available.",
+		})
 	}
 
-	// Get all courses
-	courses, err := s.store.ListAllCourses(context.Background())
+	// Prepare AI Prompt
+	type PromptCourse struct {
+		ID   int64  `json:"id"`
+		Code string `json:"code"`
+		Name string `json:"name"`
+		Desc string `json:"desc"`
+	}
+	var promptList []PromptCourse
+	for _, c := range candidates {
+		desc := ""
+		if c.LearningOutcomes.Valid {
+			desc = c.LearningOutcomes.String
+			if len(desc) > 150 { desc = desc[:150] + "..." }
+		}
+		promptList = append(promptList, PromptCourse{
+			ID:   c.ID,
+			Code: c.Code,
+			Name: c.Name,
+			Desc: desc,
+		})
+	}
+	candidateBytes, _ := json.Marshal(promptList)
+
+	systemPrompt := `You are an academic course advisor.
+	Task:
+	1. Analyze the 'Available Courses' list and the 'User Preference'.
+	2. Select the top 3-5 courses that best match the preference.
+	3. Return a JSON object with a key "recommendations" which is an array.
+	4. Each item must have: 
+	   - "course_id" (integer, copied exactly from input)
+	   - "code" (string)
+	   - "title" (string)
+	   - "rationale" (string, why it fits)
+	   - "match" (number 0-100)`
+
+	userPrompt := fmt.Sprintf("User Preference: %s\n\nAvailable Courses:\n%s", req.Preference, string(candidateBytes))
+
+	messages := []aiMessage{
+		{Role: "system", Content: systemPrompt},
+		{Role: "user", Content: userPrompt},
+	}
+
+	rawResponse, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, messages, true)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
 	}
-	if len(courses) == 0 {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("no courses in catalog")))
+
+	// Parse AI Response
+	var aiResult struct {
+		Recommendations []struct {
+			CourseID  int64   `json:"course_id"`
+			Code      string  `json:"code"`
+			Title     string  `json:"title"`
+			Rationale string  `json:"rationale"`
+			Match     float64 `json:"match"`
+		} `json:"recommendations"`
 	}
-
-	// Build course list context
-	var courseList strings.Builder
-	for _, cCourse := range courses {
-		// We mention the code explicitly so the model can use it.
-		courseList.WriteString(fmt.Sprintf(
-			"- Name: %s | Code: %s\n  Learning outcomes: %s\n",
-			cCourse.Name,
-			cCourse.Code,
-			cCourse.LearningOutcomes.String,
-		))
-	}
-
-	// System + user messages for OpenAI
-	systemMsg := aiMessage{
-		Role: "system",
-		Content: `You are an academic advisor AI.
-Given a student's transcript and a catalog of university courses, recommend the most relevant courses.
-
-You MUST respond in pure JSON only. No markdown, no commentary, no extra keys.
-
-Return an array of objects with this exact schema:
-[
-  {
-    "title": "Course Name",
-    "code": "TIES4911",         // EXACT course code from the catalog
-    "description": "Why it fits",
-    "match": 95.2               // number 0–100
-  }
-]`,
-	}
-
-	userPrompt := fmt.Sprintf(`
-The following text is an academic transcript. Analyze the student's background and recommend the most relevant university courses.
-
-Transcript:
-"""
-%s
-"""
-
-Available courses (Name + Code + brief description):
-%s
-
-Return ONLY JSON in the exact format described earlier. Do not include scholarships.
-`, transcriptText, courseList.String())
-
-	userMsg := aiMessage{
-		Role:    "user",
-		Content: userPrompt,
-	}
-
-	raw, err := callOpenAIChat(c.Context(), s.config.OpenAIAPIKey, s.config.OpenAIModel, []aiMessage{systemMsg, userMsg}, true)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(fmt.Errorf("openai request failed: %v", err)))
-	}
-
-	// Parse model output robustly — support both array and object-shaped responses
-	var recs []Recommendation
-
-	// Try direct array first
-	if err := json.Unmarshal([]byte(raw), &recs); err != nil {
-		// If it's not an array, maybe it's an object with "courses" or "recommendations"
-		var obj map[string]any
-		if err2 := json.Unmarshal([]byte(raw), &obj); err2 == nil {
-			if arr, ok := obj["courses"].([]any); ok {
-				b, _ := json.Marshal(arr)
-				_ = json.Unmarshal(b, &recs)
-			} else if arr, ok := obj["recommendations"].([]any); ok {
-				b, _ := json.Marshal(arr)
-				_ = json.Unmarshal(b, &recs)
-			}
+	
+	if err := json.Unmarshal([]byte(rawResponse), &aiResult); err != nil {
+		var directArr []struct {
+			CourseID  int64   `json:"course_id"`
+			Code      string  `json:"code"`
+			Title     string  `json:"title"`
+			Rationale string  `json:"rationale"`
+			Match     float64 `json:"match"`
 		}
-
-		// Fallback manual extraction if still empty
-		if len(recs) == 0 {
-			recs = extractJSONRecommendations(raw)
+		if err2 := json.Unmarshal([]byte(rawResponse), &directArr); err2 == nil {
+			aiResult.Recommendations = directArr
 		}
 	}
 
-	// Attach real course links from DB using code (and fallback to title match)
-	attachCourseLinksFromCatalog(recs, courses)
-
-	// Debug: print parsed recommendation structs
-	fmt.Println("[DEBUG] Parsed Recommendations (Go structs):")
-	for i, r := range recs {
-		fmt.Printf("  %d) %s [%s] (%.2f%%) — %s (link=%s)\n",
-			i+1, r.Title, r.Code, r.Match, r.Description, r.Link)
-	}
-	fmt.Println("------------------------------------------------------------")
-
-	// Sort by match score
-	sort.Slice(recs, func(i, j int) bool { return recs[i].Match > recs[j].Match })
-
-	// Split into categories (simple rule-based classification)
-	var recommendedCourses []Recommendation
-	var scholarships []Recommendation
-
-	for _, r := range recs {
-		if strings.Contains(strings.ToLower(r.Title), "scholarship") {
-			r.Type = "scholarship"
-			scholarships = append(scholarships, r)
-		} else {
-			r.Type = "course"
-			recommendedCourses = append(recommendedCourses, r)
-		}
-	}
-
-	// Return structured response
-	return c.JSON(fiber.Map{
-		"user":          payload.Username,
-		"courses":       recommendedCourses,
-		"scholarships":  scholarships,
-		"analyzed_at":   time.Now(),
-		"source":        s.config.OpenAIModel,
-		"transcript_id": latest.ID,
-	})
-}
-
-// Basic JSON parser fallback
-func extractJSONRecommendations(raw string) []Recommendation {
-	start := strings.Index(raw, "[")
-	end := strings.LastIndex(raw, "]")
-	if start == -1 || end == -1 || end <= start {
-		return nil
-	}
-	sub := raw[start : end+1]
-	var recs []Recommendation
-	_ = json.Unmarshal([]byte(sub), &recs)
-	return recs
-}
-
-// Attach course links + fix missing codes using the DB catalog
-func attachCourseLinksFromCatalog(recs []Recommendation, courses []db.Course) {
-	// Build lookup table: CODE → link
-	linkByCode := make(map[string]string, len(courses))
-
-	for _, c := range courses {
-		code := strings.ToUpper(strings.TrimSpace(c.Code))
-		if code == "" {
-			continue
-		}
-		if c.CourseLink.Valid && c.CourseLink.String != "" {
-			linkByCode[code] = c.CourseLink.String
-		}
-	}
-
-	// Attach link (and code if missing)
-	for i := range recs {
-		code := strings.ToUpper(strings.TrimSpace(recs[i].Code))
-
-		// 1) Direct code match (best case)
-		if code != "" {
-			if link, ok := linkByCode[code]; ok {
-				recs[i].Link = link
-				continue
-			}
-		}
-
-		// 2) Fallback: detect code inside the title text
-		tUpper := strings.ToUpper(recs[i].Title)
-		for c, link := range linkByCode {
-			if strings.Contains(tUpper, c) {
-				recs[i].Code = c
-				recs[i].Link = link
+	// Map back to Recommendation Struct
+	finalRecs := make([]Recommendation, 0)
+	for _, r := range aiResult.Recommendations {
+		link := ""
+		for _, c := range candidates {
+			if c.ID == r.CourseID && c.CourseLink.Valid {
+				link = c.CourseLink.String
 				break
 			}
 		}
+
+		finalRecs = append(finalRecs, Recommendation{
+			Type:        "course",
+			Title:       r.Title,
+			Code:        r.Code,
+			Description: r.Rationale,
+			Match:       r.Match,
+			Link:        link,
+			CourseID:    r.CourseID,
+		})
 	}
+
+	sort.Slice(finalRecs, func(i, j int) bool { return finalRecs[i].Match > finalRecs[j].Match })
+
+	// Save to DB
+	fullResultWrapper := fiber.Map{
+		"courses": finalRecs,
+	}
+	resultJSON, _ := json.Marshal(fullResultWrapper)
+
+	reco, err := s.store.CreateRecommendation(c.Context(), db.CreateRecommendationParams{
+		UserUsername: payload.Username,
+		TranscriptID: sql.NullInt64{Int64: req.TranscriptID, Valid: true},
+		Payload:      resultJSON,
+		Summary:      sql.NullString{String: "Course Recommendation", Valid: true},
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
+	}
+
+	return c.JSON(fiber.Map{
+		"id":          reco.ID,
+		"created_at":  reco.CreatedAt,
+		"courses":     finalRecs,
+		"user_pref":   req.Preference,
+		"analyzed_at": time.Now(),
+	})
+}
+
+// -----------------------------------------------------------------------------
+// 4. HANDLERS: List & Get (Added these to fix build error)
+// -----------------------------------------------------------------------------
+
+// GET /recommendations
+func (s *Server) listRecommendations(c *fiber.Ctx) error {
+	payload, ok := c.Locals(authorizationPayloadKey).(*token.Payload)
+	if !ok || payload == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(errorResponse(fmt.Errorf("unauthorized")))
+	}
+
+	// Calls the SQLC generated method ListRecommendations
+	recos, err := s.store.ListRecommendations(c.Context(), payload.Username)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
+	}
+
+	return c.JSON(recos)
+}
+
+// GET /recommendations/:id
+func (s *Server) getRecommendation(c *fiber.Ctx) error {
+	payload, ok := c.Locals(authorizationPayloadKey).(*token.Payload)
+	if !ok || payload == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(errorResponse(fmt.Errorf("unauthorized")))
+	}
+
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(errorResponse(err))
+	}
+
+	reco, err := s.store.GetRecommendation(c.Context(), id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.Status(fiber.StatusNotFound).JSON(errorResponse(fmt.Errorf("recommendation not found")))
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(errorResponse(err))
+	}
+
+	// Security check: ensure user owns this recommendation
+	if reco.UserUsername != payload.Username {
+		return c.Status(fiber.StatusForbidden).JSON(errorResponse(fmt.Errorf("forbidden")))
+	}
+
+	return c.JSON(reco)
 }

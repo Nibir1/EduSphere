@@ -1,4 +1,4 @@
--- db/query/course.sql
+-- server/db/query/course.sql
 
 -- name: CreateCourse :one
 INSERT INTO courses (

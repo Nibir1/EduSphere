@@ -109,10 +109,14 @@ func (server *Server) setUpRoutes() {
 	auth.Get("/transcripts/:id", server.getTranscript)
 
 	// --- Recommendations ---
+	// Create (Smart Filtered Recommendation)
 	auth.Post("/recommendations", server.createRecommendation)
-	auth.Post("/recommendations/generate", server.generateRecommendations)
+	
+	// List & Get (History)
 	auth.Get("/recommendations", server.listRecommendations)
 	auth.Get("/recommendations/:id", server.getRecommendation)
+	
+	// REMOVED: auth.Post("/recommendations/generate", ...) because we merged it into createRecommendation
 
 	// --- Scholarships (AI + Web Search) ---
 	auth.Post("/scholarships/generate", server.generateScholarships)

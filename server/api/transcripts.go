@@ -59,7 +59,13 @@ func ocrPDFToText(pdfPath string) (string, error) {
 	// Step 1: Convert the PDF pages to images (using pdftoppm from poppler-utils)
 	tempDir := os.TempDir()
 	outputPrefix := filepath.Join(tempDir, fmt.Sprintf("ocr_%d", time.Now().UnixNano()))
-	cmd := exec.Command("pdftoppm", "-png", pdfPath, outputPrefix)
+	
+	// For local testing, you might use:
+	// cmd := exec.Command("pdftoppm", "-png", pdfPath, outputPrefix)
+
+	// Use the ABSOLUTE PATH for pdftoppm to ensure execution in Docker
+	cmd := exec.Command("/usr/bin/pdftoppm", "-png", pdfPath, outputPrefix)
+	
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to convert pdf to images: %w", err)
 	}
@@ -74,6 +80,8 @@ func ocrPDFToText(pdfPath string) (string, error) {
 	}
 
 	// Step 3: OCR each image page
+	// gosseract client initialization often needs TESSDATA_PREFIX to be set, 
+	// but the Alpine image usually handles the default paths correctly.
 	client := gosseract.NewClient()
 	defer client.Close()
 	client.SetLanguage("eng")
