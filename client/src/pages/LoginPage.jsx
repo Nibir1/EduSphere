@@ -5,8 +5,6 @@ import LoginRight from "../components/login/LoginRight";
 
 export default function LoginPage() {
   return (
-
-
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       {/* background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#f8f6ff] via-[#faf8ff] to-white"></div>
@@ -20,9 +18,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-
-
-
-
   );
 }
