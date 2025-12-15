@@ -1,128 +1,214 @@
-# 🧠 EduSphere — AI-Powered Academic Assistant
+# EduSphere — AI-Powered Academic Assistant
 
-> **Ambitious Full-Stack Generative AI System** built with **Golang Fiber**, **PostgreSQL**, and **React (Vite)** — integrating local LLM inference, dynamic reasoning, and production-grade software design.
+> **Ambitious Full-Stack Generative AI Platform** built with **Golang Fiber**, **PostgreSQL**, and **React (Vite)** — demonstrating expertise in **OpenAI API integration, secure system design, and dynamic, context-aware reasoning.**
 
-EduSphere isn’t just another AI demo — it’s a **complete Generative AI platform** that transforms student transcripts into **personalized insights, course recommendations, and scholarship matches** — all powered by **on-device LLM inference** through Ollama.
+EduSphere transforms raw student transcripts into **actionable academic intelligence** (personalized course recommendations, scholarship matches, and real-time advice) powered by the speed and efficiency of **OpenAI's GPT-4o-mini**.
 
-It represents a **real-world AI Systems Engineering project**, blending backend scalability, AI reasoning, and modern UI design into a cohesive and professional-grade product.
-
----
-
-## 🚀 Why EduSphere Is an Ambitious Project
-
-- 🧩 **End-to-End System Design** — Secure multi-user authentication, inference orchestration, and persistent data handling.  
-- 🧠 **AI Reasoning Layer** — Summarization, academic profiling, and context-based course & scholarship discovery.  
-- ⚙️ **Production-Grade Backend** — Golang Fiber + PostgreSQL + structured routes + concurrency-safe architecture.  
-- 💬 **Streaming Chat Interface** — Real-time chat UX built in React, mirroring ChatGPT’s conversational flow.  
-- 📄 **Dynamic PDF Reports** — Auto-generated academic summaries with integrated AI reasoning.  
-- 🔒 **Local & Private Inference** — Runs LLMs directly on-device with **Ollama**, ensuring privacy and independence from cloud APIs.
+This project represents a **Full-Stack AI Systems Engineering solution**, blending backend scalability, complex AI pipelines, and modern UI design into a single, professional-grade product.
 
 ---
 
-## 🧩 System Architecture
+## Key Differentiators & Production-Ready Features
 
-| Layer | Stack | Description |
+- **Contextual AI Reasoning Pipeline** 
+    - Orchestrates multi-step reasoning (Summarization -> Filtering -> Matching) using **GPT-4o-mini**.
+    - **Hybrid RAG Logic:** Combines static transcript data with real-time web search results (Brave API) for dynamic scholarship discovery.
+- **Scalable Cloud Inference (OpenAI)**
+    - Leverages **GPT-4o-mini** for high-throughput, low-latency reasoning, ensuring rapid responses for chat and recommendations while maintaining cost efficiency.
+    - Implements robust error handling and response parsing for non-deterministic LLM outputs.
+- **Robust Backend & Data Persistence**
+    - Built on **Golang Fiber** and **PostgreSQL** for high-performance API delivery and secure, structured data storage (user-specific records, recommendations, and PDF paths).
+- **Dynamic Chat & State Management**
+    - Features a real-time, ChatGPT-style **streaming chat interface** built in React, fully context-aware of the user's latest transcript, recommended courses, and available scholarships.
+- **Advanced Data Reporting & Control**
+    - Generates dynamic, professional **PDF Reports** that are context-aware (course links, rationale, scholarship details).
+    - **User Control Feature:** Implements a full **CRUD cycle** allowing users to **delete specific recommended courses**, with changes persisting immediately to the database and reflected in future PDF exports.
+
+---
+
+## System Architecture (A Full-Stack GenAI Platform)
+
+| Layer | Stack | Key Responsibilities |
 |-------|--------|-------------|
-| **Frontend** | React (Vite), TailwindCSS, Lucide Icons | Real-time chat UI, scholarship discovery, and summary dashboards |
-| **Backend** | Golang (Fiber), PostgreSQL | Token auth, modular routes, and production-grade data persistence |
-| **AI Engine** | Ollama + Local LLMs (Gemma / Llama / Mistral) | Summarization, reasoning, and conversational inference |
-| **Storage** | PostgreSQL + Filesystem | Structured persistence for recommendations and generated reports |
-| **DevOps** | Docker, Makefile | Local development setup, easy build and run workflow |
+| **Frontend** | React (Vite), TailwindCSS | Real-time chat UX, responsive dashboards, secure state management. |
+| **Backend** | **Golang (Fiber)**, PostgreSQL | **Token Auth (JWT)**, secure modular routing, concurrent request handling. |
+| **AI Engine** | **OpenAI API (GPT-4o-mini)** | Transcript analysis, multi-step academic profiling, and conversational inference. |
+| **Storage** | PostgreSQL + Filesystem | Structured persistence for recommendations and secure storage of generated PDFs. |
+| **DevOps** | Docker, Makefile | Streamlined local development, build, and deployment workflow. |
 
 ---
 
-## 🧠 AI Engineering Highlights
+## AI Systems Engineering Highlights
 
-- Local inference using **Ollama** (no cloud dependency)  
-- Custom **prompt orchestration** for multi-step academic reasoning  
-- **RAG-ready architecture** for future integration with vector databases  
-- **Hybrid reasoning** combining transcript data and Brave search results  
-- ChatGPT-style **streaming LLM chat** with markdown rendering  
-- Professional **PDF generation pipeline** with summaries, recommendations, and scholarships
+| Component | Technical Achievement |
+|---|---|
+| **Orchestration** | Custom prompt pipelines ensuring accurate, multi-step academic reasoning with GPT-4o-mini. |
+| **Contextual Chat** | Secure injection of transcript, course, and scholarship JSON into the LLM system prompt for grounded answers. |
+| **Hybrid Search** | Combining Brave Search API results with LLM filtering/ranking for robust scholarship matching. |
+| **Scalability** | Golang's concurrency model handles long-running AI API calls without blocking the server's thread pool. |
+| **Tooling** | Professional PDF generation pipeline (using `gofpdf`) that renders clickable course links and structured data. |
 
 ---
 
-## 🧰 System Workflow
+## System Workflow: From Upload to Insight
 
 ```plaintext
-User Uploads Transcript
-        ↓
-AI Summarizes Academic Profile
-        ↓
-Course Recommendations (LLM Reasoning)
-        ↓
-Scholarship Matching (Web Search + AI Filtering)
-        ↓
-PDF Report Generation
-        ↓
-Optional Chat with AI (Real-Time Streaming)
+User Uploads Transcript/Sets Preference
+         (Multipart Upload)
+                  ↓
+Step 1: Transcript Processing & Recommendation
+         (API: POST /recommendations)
+         - GPT-4o-mini extracts completed courses (history)
+         - GPT-4o-mini filters available courses & assigns match scores (saved to DB)
+                  ↓
+Step 2: Dynamic Scholarship Discovery
+         (API: POST /scholarships/generate)
+         - Web Search (Brave API)
+         - GPT-4o-mini filters & formats best matches (saved to DB)
+                  ↓
+Step 3: User Interaction
+         - DELETE /recommendations/{reco_id}/courses/{course_id} (Updates DB payload)
+         - POST /chat/stream (Contextual conversation via OpenAI)
+                  ↓
+Step 4: Reporting
+         - POST /summaries (Generates context-aware PDF from latest DB payload)
 ```
----
-### ✨ List of Functionalities this project can do
 
-- Analyze uploaded student transcripts and extract structured insights.  
-- Generate AI-powered academic summaries highlighting key strengths and subjects.  
-- Recommend personalized academic courses based on transcript content, inferred interests, and existing courses from the database.  
-- Perform real-time web searches (via Brave Search API) for scholarships relevant to a student’s profile.  
-- Use AI filtering and ranking to match the most suitable scholarships based on relevance and fit.  
-- Integrate scholarship details (title, description, match score, and URL) directly into the user dashboard.  
-- Dynamically include discovered scholarships into summary reports or PDF exports.  
-- Handle duplicate filtering and sanitization to ensure unique and clean scholarship results.  
-- Generate academic summaries using local LLM inference (via Ollama) — no external API needed.  
-- Run natural language reasoning pipelines locally for complete data privacy.  
-- Support prompt-based orchestration for summarization, recommendation, and contextual reasoning.  
-- Provide a real-time chat interface for natural, conversational interaction with EduSphere AI.  
-- Generate dynamic academic reports (PDF) including summary, recommendations, and scholarships.  
-- Include clickable scholarship links within the PDF for user convenience.  
-- Use structured report layouts with user information, creation date, and clean professional typography.  
-- Save generated PDFs locally on the backend, linked securely to individual user accounts.  
-- Allow users to download saved reports directly from the web interface.  
-- Support deletion of old reports with full backend file cleanup.  
-- Automatically prevent duplicate or incomplete report generation.  
-- Use **Golang Fiber** for a fast, production-grade backend API.  
-- Handle authentication and authorization via secure **JWT tokens**.  
-- Maintain per-user data isolation — transcripts, summaries, and PDFs are always user-specific.  
-- Store structured data using **PostgreSQL**, with relationships between users, recommendations, and summaries.  
-- Manage concurrent API calls (e.g., AI inference and PDF generation) safely and efficiently.  
-- Support long-running AI inference operations with extended HTTP timeouts.  
-- Log detailed backend operations for full transparency and debugging.  
-- Built with **React (Vite)** — fast, modular, and optimized for developer experience.  
-- Fully responsive UI for both desktop and mobile devices.  
-- Feature a dynamic dashboard displaying document statistics, course counts, and scholarship matches.  
-- Provide progress indicators for long-running AI tasks (loading, generating, saving, etc.).  
-- Handle smooth state management for simultaneous actions (e.g., generating summaries while fetching scholarships).  
-- Implement secure token-based authentication with automatic session expiration handling.  
-- Present a clean, professional, and accessible UI using **TailwindCSS** and **Lucide icons**.  
+---
+### List of Functionalities this project can do
+
+- **Advanced Transcript Analysis:** Parse and extract structured data from student transcripts using AI to identify academic history and performance.
+- **AI-Powered Summarization:** Generate concise, high-quality academic profiles and strength assessments using **OpenAI GPT-4o-mini**.
+- **Personalized Course Recommendation:** Orchestrate multi-step AI reasoning to recommend courses based on transcript history, user preferences, and database availability.
+- **Hybrid Scholarship Discovery (RAG):** Perform real-time web searches (via **Brave Search API**) and filter results using LLM reasoning to find highly relevant scholarships.
+- **Context-Aware AI Chat:** Provide a ChatGPT-style streaming chat interface that "knows" the user's uploaded transcript, recommended courses, and scholarship opportunities.
+- **User-Controlled Customization:** Empower users to **delete specific recommended courses**, instantly updating their academic plan in the database.
+- **Dynamic PDF Reporting:** Generate professional PDF reports that combine academic summaries, course recommendations (with clickable links), and scholarship matches into a single document.
+- **Smart Data Merging:** Automatically merge disparate data sources (courses from DB, scholarships from Web) into a unified JSON payload for consistent reporting.
+- **Production-Grade Cloud Inference:** Leverage **GPT-4o-mini** for high-throughput, low-latency AI responses, ensuring a snappy user experience.
+- **Structured Data Persistence:** Store complex relationships (User $\leftrightarrow$ Transcript $\leftrightarrow$ Recommendation $\leftrightarrow$ Summary) using **PostgreSQL**.
+- **Secure Authentication:** Implement robust user security with **JWT (JSON Web Token)** authentication and automatic session management.
+- **Concurrent API Architecture:** Use **Golang Fiber’s** concurrency model to handle long-running AI tasks (like scraping or inference) without blocking the main server.
+- **Real-Time State Management:** Handle complex frontend states (e.g., generating a summary while simultaneously searching for scholarships) using React.
+- **Responsive UI/UX:** Feature a polished, mobile-responsive interface built with **React (Vite)**, **TailwindCSS**, and **Lucide Icons**.
+- **Interactive Dashboards:** Display dynamic statistics, academic progress, and match scores in a clean, visual format.
+- **Full Backend File Management:** Securely save, serve, and clean up generated PDF reports and uploaded documents.
+- **Error Resilient Design:** Handle non-deterministic AI outputs and external API failures gracefully with user-friendly error messaging.
 
 ---
 
-## ⚙️ Setup & Run
+## Setup & Run
 
-### Prerequisites
+This guide walks you through setting up and running **EduSphere** locally using either **Docker Compose** (recommended) or a **manual development setup**.
 
-- **Golang** ≥ 1.22  
-- **Node.js** ≥ 18  
-- **PostgreSQL**  
-- **Ollama** installed locally (`https://ollama.ai`)  
+---
 
-### Backend Setup
+## Prerequisites
+
+Ensure the following tools are installed on your system:
+
+* **Golang** ≥ 1.22
+* **Node.js** ≥ 18
+* **Docker** & **Docker Compose**
+* **OpenAI API Key** (configured in a `.env` file)
+* **Brave Search API Key** (configured in a `.env` file)
+
+---
+
+## System Dependencies (OCR & PDF Processing)
+
+EduSphere relies on **Tesseract OCR** and **Poppler** for processing student transcripts (OCR + PDF rendering).
+
+### macOS (Homebrew)
+
+```bash
+brew install poppler
+brew install tesseract
+brew install leptonica
+```
+
+### Ubuntu / Debian
+
+```bash
+sudo apt update
+sudo apt install -y \
+  libleptonica-dev \
+  libtesseract-dev \
+  tesseract-ocr
+```
+
+---
+
+## Quick Start (Docker Compose) — Recommended
+
+The fastest way to spin up the full stack (**PostgreSQL + Go backend**) is via Docker Compose using the provided **Makefile**.
+
+```bash
+# Build and run backend and database services
+make build
+make migrateup
+make seedCourses
+```
+
+This command internally runs:
+
+```bash
+docker-compose up --build
+```
+
+and starts:
+
+* PostgreSQL database
+* Go Fiber API server
+* React Frontend
+
+---
+
+## Manual Development Setup
+
+If you prefer running services individually without Docker, follow the steps below.
+
+### Backend (Go)
 
 ```bash
 cd server
-go run main.go
+
+# Ensure PostgreSQL is running locally
+# and the connection string is set in .env
+
+make postgres
+make createdb
+make migrateup
+make seedCourses
+
 ```
 
-### Frontend Setup
+### Frontend (Node.js)
 
 ```bash
 cd client
+
+# Install dependencies
 npm install
+
+# Start the development server
 npm run dev
 ```
 
 ---
 
-## 🧩 Key Features Summary
+## Environment Configuration
+
+Create a `.env` file in the project root directory and ensure it contains:
+
+```env
+OPENAI_API_KEY=your_api_key_here
+BRAVE_API_KEY=your_api_key_here
+```
+
+---
+
+## Key Features Summary
 
 | Feature | Description |
 |----------|--------------|
@@ -131,30 +217,27 @@ npm run dev
 | Scholarship Discovery | Brave API + AI filtering for relevant global scholarships |
 | Dynamic PDF Reports | Summaries, recommendations, and scholarships in one file |
 | Real-Time Chat | ChatGPT-style chat with streaming responses |
-| Privacy First | Fully local inference using Ollama (no data leaves your system) |
 
 ---
 
-## 💡 Why It Matters
+## Why It Matters
 
-EduSphere demonstrates **end-to-end Generative AI Systems Engineering** —  
-combining **AI reasoning, backend scalability, and human-centered interaction** into a seamless platform.
+EduSphere demonstrates **end-to-end Generative AI Systems Engineering** — combining **AI reasoning, backend scalability, and human-centered interaction** into a seamless platform.
 
 It’s designed to showcase the kind of **architecture and applied AI thinking** that modern companies expect from **AI Engineers and Full-Stack Developers** building production-grade GenAI tools.
 
 ---
 
-## 🧠 Built With
+## Built With
 
 - **Golang (Fiber Framework)** — backend & API design  
 - **PostgreSQL** — structured relational data storage  
 - **React + Vite + TailwindCSS** — frontend experience  
-- **Ollama (Local LLM Inference)** — private, on-device AI reasoning  
 - **Docker + Makefile** — streamlined dev & deployment environment  
 
 ---
 
-## 🏆 Project Scope
+## Project Scope
 
 EduSphere reflects:  
 - Real-world **LLM orchestration** and **AI safety practices**  
