@@ -25,7 +25,5 @@ export default function PreferenceInput({ value, onChange }) {
         "
       />
     </div>
-
-
   );
 }

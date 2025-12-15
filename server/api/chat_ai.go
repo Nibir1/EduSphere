@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	db "github.com/nibir1/go-fiber-postgres-REST-boilerplate/db/sqlc" // Added for DB Params
 	"github.com/nibir1/go-fiber-postgres-REST-boilerplate/token"
 )
 
@@ -63,31 +64,29 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 						contextBuilder.WriteString(fmt.Sprintf("\n\n[USER ACADEMIC TRANSCRIPT TEXT]\n%s\n", tr.TextExtracted.String))
 					}
 				}
-                
-                // --- DEBUG STEP: Log the raw payload to find the correct key ---
-                if len(reco.Payload) > 2 {
-                    log.Printf("[AI-CHAT] DEBUG RAW PAYLOAD: %s", string(reco.Payload))
-                }
-                // ------------------------------------------------------------------
 
-				// 3b. Inject Recommendation Payload (Courses, Scholarships, Rationale)
+				// --- DEBUG STEP: Log the raw payload to find the correct key ---
+				if len(reco.Payload) > 2 {
+					log.Printf("[AI-CHAT] DEBUG RAW PAYLOAD: %s", string(reco.Payload))
+				}
+				// ------------------------------------------------------------------
+
+				// 3b. Inject Recommendation Payload (Courses, Rationale)
 				if len(reco.Payload) > 2 {
 					var payloadMap map[string]json.RawMessage
 					if json.Unmarshal(reco.Payload, &payloadMap) == nil {
-						
+
 						// i. Inject Recommended Courses
 						if coursesJSON, ok := payloadMap["courses"]; ok && len(coursesJSON) > 2 {
 							contextBuilder.WriteString(fmt.Sprintf("\n\n[RECOMMENDED COURSES JSON]\n%s\n", string(coursesJSON)))
 						}
-						
-						// ii. Inject Found Scholarships (LOOKING FOR KEY "scholarships")
-						if scholarshipsJSON, ok := payloadMap["scholarships"]; ok && len(scholarshipsJSON) > 2 {
-							contextBuilder.WriteString(fmt.Sprintf("\n\n[MATCHED SCHOLARSHIPS JSON]\n%s\n", string(scholarshipsJSON)))
-						}
 
-						// iii. Inject remaining payload 
+						// ii. We remove "scholarships" key from here if it exists in the JSON blob,
+						// because we will fetch the FRESH list from the DB below.
 						delete(payloadMap, "courses")
-						delete(payloadMap, "scholarships")
+						delete(payloadMap, "scholarships") // Ignore blob scholarships, use DB instead
+
+						// iii. Inject remaining payload
 						if remainingJSON, err := json.Marshal(payloadMap); err == nil && len(remainingJSON) > 2 {
 							contextBuilder.WriteString(fmt.Sprintf("\n\n[OTHER RECOMMENDATION DATA JSON]\n%s\n", string(remainingJSON)))
 						}
@@ -109,6 +108,52 @@ func (s *Server) chatStream(c *fiber.Ctx) error {
 			}
 		}
 	}
+
+	// -------------------------------------------------------------------------
+	// NEW: Inject Real-time Scholarships from Database
+	// -------------------------------------------------------------------------
+	scholarships, err := s.store.ListRecentScholarshipsByUser(c.Context(), db.ListRecentScholarshipsByUserParams{
+		UserUsername: payload.Username,
+		Limit:        10, // Fetch top 10 most recent/relevant
+	})
+
+	if err == nil && len(scholarships) > 0 {
+		var sb strings.Builder
+		sb.WriteString("\n\n=== AVAILABLE SCHOLARSHIP OPPORTUNITIES (FROM DATABASE) ===\n")
+		sb.WriteString("Use this list if the user asks about financial aid, funding, or scholarships.\n\n")
+
+		for i, sch := range scholarships {
+			matchScore := 0.0
+			if sch.MatchScore.Valid {
+				matchScore = sch.MatchScore.Float64
+			}
+
+			// Format: 1. Title (Match: X%)
+			sb.WriteString(fmt.Sprintf("%d. %s (Match: %.0f%%)\n", i+1, sch.Title, matchScore))
+
+			// Add Description (truncated)
+			if sch.Description.Valid {
+				desc := sch.Description.String
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				sb.WriteString(fmt.Sprintf("   Context: %s\n", desc))
+			}
+
+			// Add Link
+			if sch.Link.Valid {
+				sb.WriteString(fmt.Sprintf("   Link: %s\n", sch.Link.String))
+			}
+			sb.WriteString("\n")
+		}
+		
+		// Append to the main system context
+		systemContext += sb.String()
+		log.Printf("[AI-CHAT] Injected %d scholarships from DB into context.", len(scholarships))
+	} else if err != nil {
+		log.Printf("[AI-CHAT] Failed to fetch scholarships for user %s: %v", payload.Username, err)
+	}
+	// -------------------------------------------------------------------------
 
 	// --- Build messages for OpenAI (incorporate systemContext) ---
 	var openAIMessages []map[string]string
