@@ -20,7 +20,7 @@ migratenew:
 
 # To run database migrations using the migrate tool located at db/migration directory locally.
 migrateup:
-	migrate -path db/migration -database "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose up
+	migrate -path db/migration -database "postgresql://edusphere_db_21g1_user:[Password]@dpg-d519ijre5dus73fj2q70-a.frankfurt-postgres.render.com/edusphere_db_21g1?sslmode=require" -verbose up
 
 # To run only the first migration file
 migrateup1:

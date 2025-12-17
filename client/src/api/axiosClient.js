@@ -3,7 +3,12 @@
 import axios from "axios";
 import { getAccessToken, clearAccessToken } from "./tokenStore";
 
-const API_BASE = "/api"; // handled by proxy (maps to localhost:8080)
+// 🔹 DYNAMIC BASE URL SETUP
+// 1. Production (Render): Uses VITE_API_BASE_URL from environment variables
+// 2. Local Dev: Falls back to "/api" (which gets caught by vite.config.js proxy)
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
+console.log("🚀 Axios Base URL:", API_BASE); // Debug log to verify connection in browser console
 
 // Create main Axios instance
 const api = axios.create({
@@ -55,8 +60,11 @@ api.interceptors.response.use(
 export const apiDownload = async (url, filename = "file.pdf") => {
   try {
     const token = getAccessToken();
+    // Ensure we use the same API_BASE for downloads
+    // If the url passed in is relative (e.g., "/reports/123"), axios uses baseURL automatically.
+    // However, since we are doing a manual axios.get here, we explicitly pass baseURL.
     const res = await axios.get(url, {
-      baseURL: API_BASE,
+      baseURL: API_BASE, 
       headers: { Authorization: `Bearer ${token}` },
       responseType: "blob",
     });
