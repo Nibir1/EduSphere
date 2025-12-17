@@ -45,6 +45,9 @@ mock:
 seedCourses:
 	go run db/seed/seed_courses.go
 
+seedCoursesOnRender:
+	DB_SOURCE="postgresql://edusphere_db_21g1_user:[Password]@dpg-d519ijre5dus73fj2q70-a.frankfurt-postgres.render.com/edusphere_db_21g1?sslmode=require" go run db/seed/seed_courses.go
+
 # To run Go tests with verbose output and code coverage
 test:
 	go test -v -cover ./...
@@ -95,4 +98,4 @@ clean:
 shell-backend:
 	docker-compose exec backend /bin/bash
 
-.PHONY: postgres createdb dropdb psql migratenew migrateup migrateup1 migratedown migratedown1 sqlc mock test server swagger seedCourses websearch-test brave-direct-test build up down logs clean shell-backend
+.PHONY: postgres createdb dropdb psql migratenew migrateup migrateup1 migratedown migratedown1 sqlc mock test server swagger seedCourses seedCoursesOnRender websearch-test brave-direct-test build up down logs clean shell-backend

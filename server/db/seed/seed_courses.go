@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os" // <--- Added this to read environment variables
 	"time"
 
 	_ "github.com/lib/pq"
@@ -25,12 +26,27 @@ type Course struct {
 }
 
 func main() {
-	connStr := "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable"
+	// 1. Check for DB_SOURCE environment variable
+	connStr := os.Getenv("DB_SOURCE")
+	
+	// 2. Fallback to localhost if the variable is empty (for local dev safety)
+	if connStr == "" {
+		connStr = "postgresql://root:secret@localhost:5432/simple_bank?sslmode=disable"
+		fmt.Println("⚠️  No DB_SOURCE found. Defaulting to localhost...")
+	} else {
+		fmt.Println("🌍 Connecting to remote database...")
+	}
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatalf("Cannot connect to DB: %v", err)
 	}
 	defer db.Close()
+
+    // Test the connection immediately
+	if err := db.Ping(); err != nil {
+		log.Fatalf("Failed to ping DB: %v", err)
+	}
 
 	courses := []Course{
 		{
