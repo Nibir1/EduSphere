@@ -54,11 +54,11 @@ func NewServer(config util.Config, store db.Store) (*Server, error) {
 		allowedOrigins = "http://localhost:5173,http://localhost:3000"
 	}
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins,
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-		ExposeHeaders:    "Content-Length, Content-Type",
-		AllowCredentials: true,
+        AllowOrigins:     allowedOrigins,
+        AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+        AllowHeaders:     "Origin, Content-Type, Accept, Authorization, X-Recommendation-ID",
+        ExposeHeaders:    "Content-Length, Content-Type",
+        AllowCredentials: true,
 	}))
 
 	validate := validator.New()
