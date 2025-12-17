@@ -3,8 +3,9 @@
 # Use a single-stage build with Go installed.
 # This ensures we have the 'go' command available in the final container
 # to run your seed script (db/seed/seed_courses.go).
-FROM golang:1.22-bookworm
+FROM golang:1.25-bookworm
 
+# Set the working directory inside the container
 WORKDIR /app
 
 # ------------------------------------------------------------------------------
