@@ -46,8 +46,9 @@ RUN go build -o main main.go
 # ------------------------------------------------------------------------------
 # 5. Runtime Configuration
 # ------------------------------------------------------------------------------
-# Standardize the Tesseract data path (Debian default)
-ENV TESSDATA_PREFIX /usr/share/tesseract-ocr/4.00/tessdata
+# ⭐ FIX: Point to the generic path for Tesseract 5 (Debian Bookworm)
+# The '/4.00/' subdirectory is removed because it no longer exists in this version.
+ENV TESSDATA_PREFIX /usr/share/tesseract-ocr/tessdata
 
 EXPOSE 8080
 
