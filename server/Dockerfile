@@ -1,54 +1,42 @@
 # server/Dockerfile
 
-# Use a single-stage build with Go installed.
-# This ensures we have the 'go' command available in the final container
-# to run your seed script (db/seed/seed_courses.go).
 FROM golang:1.25-bookworm
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# ------------------------------------------------------------------------------
 # 1. Install System Dependencies
-# ------------------------------------------------------------------------------
-# We install:
-# - poppler-utils: for PDF -> Image conversion (pdftoppm)
-# - tesseract-ocr: the OCR engine
-# - tesseract-ocr-eng: English language data for OCR
-# - libtesseract-dev: headers for compiling Go CGO bindings
-# - libleptonica-dev: image processing headers
+# We include 'curl' to manually download the Tesseract language file
 RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
-    tesseract-ocr-eng \
     libtesseract-dev \
     libleptonica-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------------------------
 # 2. Cache Go Modules
-# ------------------------------------------------------------------------------
 COPY go.mod go.sum ./
 RUN go mod download
 
-# ------------------------------------------------------------------------------
 # 3. Copy Source Code
-# ------------------------------------------------------------------------------
-# We copy the entire project directory.
-# This ensures 'db/seed/seed_courses.go' is present in the container.
 COPY . .
 
-# ------------------------------------------------------------------------------
 # 4. Build the Application
-# ------------------------------------------------------------------------------
 RUN go build -o main main.go
 
 # ------------------------------------------------------------------------------
-# 5. Runtime Configuration
+# 5. Runtime Configuration (The Bulletproof Fix)
 # ------------------------------------------------------------------------------
-# ⭐ FIX: Point to the generic path for Tesseract 5 (Debian Bookworm)
-# The '/4.00/' subdirectory is removed because it no longer exists in this version.
-ENV TESSDATA_PREFIX /usr/share/tesseract-ocr/tessdata
+# A. Create a clean, known directory for Tesseract data
+RUN mkdir -p /usr/share/tessdata
+
+# B. Manually download the English training data (Fast version)
+# This bypasses any confusion about where apt-get installed it.
+RUN curl -L -o /usr/share/tessdata/eng.traineddata \
+    https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata
+
+# C. Point TESSDATA_PREFIX to that specific directory
+ENV TESSDATA_PREFIX /usr/share/tessdata
 
 EXPOSE 8080
 
