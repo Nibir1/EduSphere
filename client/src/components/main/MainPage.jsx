@@ -85,15 +85,28 @@ export default function MainPage() {
         }
     }
 
-    // Existing useEffects for localStorage management
+    // 🛡️ CRASH FIX: Safe LocalStorage Loading
     useEffect(() => {
         const saved = localStorage.getItem("uploadedDocs");
-        if (saved) setUploadedDocuments(JSON.parse(saved));
+        
+        // Only attempt to parse if 'saved' exists and is NOT the string "undefined"
+        if (saved && saved !== "undefined") {
+            try {
+                setUploadedDocuments(JSON.parse(saved));
+            } catch (e) {
+                console.error("Found corrupted data in localStorage, resetting...", e);
+                localStorage.removeItem("uploadedDocs"); // Auto-heal: delete bad data
+                setUploadedDocuments([]); // Reset state to empty
+            }
+        }
     }, []);
 
 
     useEffect(() => {
-        localStorage.setItem("uploadedDocs", JSON.stringify(uploadedDocuments));
+        // Safe save: Ensure we don't accidentally save undefined
+        if (uploadedDocuments !== undefined) {
+            localStorage.setItem("uploadedDocs", JSON.stringify(uploadedDocuments));
+        }
     }, [uploadedDocuments]);
 
 
