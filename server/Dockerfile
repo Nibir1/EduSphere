@@ -1,51 +1,54 @@
 # server/Dockerfile
 
-# ------------------------------------------------------------------------------
-# Build Stage
-# ------------------------------------------------------------------------------
-FROM golang:alpine AS builder
+# Use a single-stage build with Go installed.
+# This ensures we have the 'go' command available in the final container
+# to run your seed script (db/seed/seed_courses.go).
+FROM golang:1.22-bookworm
+
 WORKDIR /app
 
-# Install dependencies for CGO (required by gosseract and linking external libs)
-# - build-base: contains gcc, g++, etc.
-# - tesseract-ocr-dev: contains C headers for compilation
-# - leptonica-dev: image processing lib headers
-# - poppler-dev: required for pdftoppm linkage
-RUN apk add --no-cache build-base tesseract-ocr-dev leptonica-dev pkgconfig poppler-dev
+# ------------------------------------------------------------------------------
+# 1. Install System Dependencies
+# ------------------------------------------------------------------------------
+# We install:
+# - poppler-utils: for PDF -> Image conversion (pdftoppm)
+# - tesseract-ocr: the OCR engine
+# - tesseract-ocr-eng: English language data for OCR
+# - libtesseract-dev: headers for compiling Go CGO bindings
+# - libleptonica-dev: image processing headers
+RUN apt-get update && apt-get install -y \
+    poppler-utils \
+    tesseract-ocr \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    libleptonica-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Explicitly set the path for Tesseract language files (Only required for compilation stage, but harmless)
-ENV TESSDATA_PREFIX /usr/share/tessdata
-
+# ------------------------------------------------------------------------------
+# 2. Cache Go Modules
+# ------------------------------------------------------------------------------
 COPY go.mod go.sum ./
 RUN go mod download
 
+# ------------------------------------------------------------------------------
+# 3. Copy Source Code
+# ------------------------------------------------------------------------------
+# We copy the entire project directory.
+# This ensures 'db/seed/seed_courses.go' is present in the container.
 COPY . .
+
+# ------------------------------------------------------------------------------
+# 4. Build the Application
+# ------------------------------------------------------------------------------
 RUN go build -o main main.go
 
 # ------------------------------------------------------------------------------
-# Run Stage
+# 5. Runtime Configuration
 # ------------------------------------------------------------------------------
-FROM alpine:3.19
-WORKDIR /app
-
-# Install Runtime Dependencies
-# - tesseract-ocr: required for the compiled app to run OCR
-# - poppler-utils: required for 'pdftoppm' command (pdf -> image conversion)
-# VITAL FIX: Added tesseract-ocr-data-eng to resolve the 'failed to initialize TessBaseAPI with code -1' error.
-RUN apk add --no-cache curl tesseract-ocr poppler-utils tesseract-ocr-data-eng
-
-# CRITICAL FIX: Set the ENV variable in the RUN STAGE for runtime execution!
-# This ensures gosseract can find the 'eng.traineddata' file inside the container.
-ENV TESSDATA_PREFIX /usr/share/tessdata 
-
-# Ensure common binary paths are in the runtime PATH
-# This ensures executables like 'pdftoppm' are found by Go's exec.Command
-ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/app
-
-# Copy binary from builder
-COPY --from=builder /app/main .
-COPY --from=builder /app/app.env .
-COPY --from=builder /app/db/migration ./db/migration
+# Standardize the Tesseract data path (Debian default)
+ENV TESSDATA_PREFIX /usr/share/tesseract-ocr/4.00/tessdata
 
 EXPOSE 8080
-CMD ["/app/main"]
+
+# Start the application
+CMD ["./main"]
